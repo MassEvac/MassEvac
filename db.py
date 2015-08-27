@@ -1058,10 +1058,13 @@ class Flood:
         error = 0
         for i,j in coordList:
             try:
-                if self.Map[j,i]>0:
-                    yes+=1
+                if i < 0 or j < 0:
+                    raise IndexError
                 else:
-                    no+=1
+                    if self.Map[j,i]>0:
+                        yes+=1
+                    else:
+                        no+=1
             except IndexError:
                 error+=1
 

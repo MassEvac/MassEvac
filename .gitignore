@@ -3,4 +3,6 @@ analysis/*
 db/*
 logs/*
 qgis/*
+flood/*
 .ipynb_checkpoints/*
+*.pyc
