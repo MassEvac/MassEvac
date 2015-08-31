@@ -1,5 +1,0 @@
-o = np.random.randint(0,9,size=(2,10))
-d = np.random.randint(0,9,size=(2,10))
-plt.figure()
-plt.scatter(o[0],o[1],c='g')
-plt.scatter(d[0],d[1],c='r')
