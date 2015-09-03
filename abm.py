@@ -108,11 +108,11 @@ class FundamentalDiagram:
         # This value CANNOT be looked up in v_dict[k]!
         self.kCf = 5.0
         # Number of bins to profile the density with
-        self.bins = int(kCf)
+        self.bins = int(self.kCf)
         # This is the average density in each bin
         # Note that the last bin is 5.25 = (5+5.5)/2
         self.bin_mean = []
-        for i in range(bins):
+        for i in range(self.bins):
             self.bin_mean.append(i+0.5)
         # Obtain the speedup factor
         self.speedup = speedup
@@ -329,22 +329,20 @@ class Sim:
         handler.setFormatter(formatter)
         # add the handlers to the logger
         self.logger.addHandler(handler)
-        
         # Place Initialisation
-        # -------------------------------------------------------------------------------
-        
+        # --------------------
         # Init highway
         self.h = db.Highway(place,fresh=self.fresh)
-        
         # If the destination nodes are not defined, use the predefined destinations determined from the major leaf nodes
         self.h.init_destins()
-        
+        # Mark the blocked edges, If True, reduces the agent velocity to vMin on that edge (doesn't affect edge capacity)
+        self.blocked = len(self.h.edges)*[False]
+        # If True, pick a random successor in case the next edge happens to be blocked
+        self.random_successor = False
         # Agent Population Dependent Initialisation
-        # -------------------------------------------------------------------------------
-        
+        # -----------------------------------------
         # Init population
         self.h.init_pop()
-        
         # If the number of agents is not defined, determine the population by multiplying the 2000 population by p_factor
         self.n = int(self.h.total_pop * p_factor)
         
@@ -382,7 +380,15 @@ class Sim:
     def agents_file(self):
         ''' Return the name of the scenario specific agent file name.
         '''
-        fname = '{0}/n={1}.d={2}'.format(self.folder,self.n,self.destin_hash())
+        blocked_count = self.blocked.count(True)
+        # Generate blocked text if some of the roads are blocked
+        if blocked_count > 0:
+            blocked_text = '.b={0}'.format(blocked_count)
+            if self.random_successor:
+                blocked_text += '.rs'
+        else:
+            blocked_text = ''
+        fname = '{0}/n={1}.d={2}{3}'.format(self.folder,self.n,self.destin_hash(),blocked_text)
         if not os.path.isdir(fname):
             os.makedirs(fname)
         return fname
@@ -392,7 +398,7 @@ class Sim:
         '''
         if scenario == None:
             scenario = self.scenario
-        fname = '{0}/n={2}.d={3}/{1}'.format(self.folder,scenario,self.n,self.destin_hash())
+        fname = '{0}/{1}'.format(self.agents_file(),scenario)
         if not os.path.isdir(fname):
             os.makedirs(fname)
         return fname
@@ -793,7 +799,7 @@ class Sim:
                         while residual_di > 0:
                             # Determine the amount of time remaining from last run
                             residual_time = residual_di/this_velocity
-                            # Agent has reached the end of the link
+                            # Agent has reached the destination node
                             if ci == self.X[this_agent]:
                                 this_location = di
                                 # Agent has reached its destination, record time
@@ -802,16 +808,24 @@ class Sim:
                                 self.N[this_edge] -= 1
                                 # Remove agent from our list of agents
                                 removal.append(this_agent)
-                            # Agent has not reached the end of the link                                
+                            # Agent has not reached the destination node
                             else:
                                 next_ri = ci
                                 next_ci = self.h.route[self.X[this_agent]][ci]
-                                next_edge = self.h.EM[next_ri][next_ci]                   
+                                next_edge = self.h.EM[next_ri][next_ci]
+                                # If the next edge is blocked, equal likelihood of picking all available routes
+                                if self.blocked[next_edge] and self.random_successor:
+                                    # Get list of all successor nodes
+                                    all_succ = self.h.G.succ[next_ri]
+                                    # Pick a random successor node
+                                    next_ci = all_succ.keys()[random.randrange(len(all_succ))]
+                                    # Determine the edge 
+                                    next_edge = self.h.EM[next_ri][next_ci]
                                 # If there is no space, then just wait at the end of the link
                                 if self.N[next_edge]+1 > self.EC[next_edge]:
                                     this_location = di
                                 # If there is enough space for the agent in the next link, only then proceed
-                                else:  
+                                else:
                                     # Assign new nodes
                                     ri = next_ri
                                     ci = next_ci
@@ -962,7 +976,11 @@ class Sim:
         ''' Function to calculate link density for the input edge.
             If df = 0, returns 0 density so that we can determine free flow evacuation time.
         '''
-        return round(settings[self.scenario]['df']*(self.N[edge]+add)/self.h.EA[edge],fd.dp)
+        if self.blocked[edge]:
+            k = fd.kMax
+        else:
+            k = settings[self.scenario]['df']*(self.N[edge]+add)/self.h.EA[edge]
+        return round(k,fd.dp)
     
     def prob_round(self,edge):
         ''' Function that rounds by using probability based on decimal places of the number.

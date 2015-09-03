@@ -9,3 +9,4 @@ flood
 .ipynb_checkpoints
 *.pyc
 .dbconfig
+_tmp*

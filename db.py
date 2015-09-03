@@ -21,11 +21,11 @@ try:
 except IOError:
     print   """ There is no .dbconfig file.
 
-        Modify and paste the following into the working directory to create the file.
+                Modify and paste the following into the working directory to create the file.
 
-        with open('.dbconfig','w') as f:
-            json.dump({'dbname':'osm_gb','host':'localhost','user':'username','password':'password'},f,indent=True)
-        """
+                with open('.dbconfig','w') as f:
+                    json.dump({'dbname':'osm_gb','host':'localhost','user':'username','password':'password'},f,indent=True)
+            """
 
 def folder(place):
     ''' Returns the folder where settings for a place are saved.
@@ -548,7 +548,7 @@ class Highway:
         return self.W[edge]
     
     def init_destins(self):
-        '''Returns a list of destin nodes.
+        ''' Returns a list of destin nodes.
         
             Returns
             -------        
