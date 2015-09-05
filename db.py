@@ -451,7 +451,7 @@ class Highway:
             ------
                 nearest_destin: int
                     Nearest destin node index
-                destin_dist: float
+                distance_destin: float
                     Distance to the nearest destin 
         '''
         # Initiate the route file if routes are not present
@@ -462,28 +462,27 @@ class Highway:
         # Extract edge information 
         u,v,d = self.edges[edge_index]
         # Determine nearest catchment areas
-        nearest_destin = np.nan
-        destin_dist = np.inf
-        for destin in self.destins:
+        nearest_destin = None
+        distance_destin = None
+        for this_destin in self.destins:
             try:
-                # Take the max of distance from u and v
-                this_dist = max(self.route_length[destin][u],self.route_length[destin][u])
-                if this_dist < destin_dist:
-                    nearest_destin = destin
-                    destin_dist = this_dist
+                # Take the mean of distance from u and v
+                this_dist = max(self.route_length[this_destin][u],self.route_length[this_destin][v])
+                print this_destin, self.route_length[this_destin][u], self.route_length[this_destin][v]
+                # If distance_destin is greater than this distance then replace
+                # Give distance_destin a number if not done yet                                    
+                if distance_destin > this_dist or distance_destin == None:
+                    nearest_destin = this_destin
+                    distance_destin = this_dist
             except KeyError:
                 pass
-        return nearest_destin, destin_dist
+        return nearest_destin, distance_destin
 
     def geojson_edges(self, fname, properties=None):
         ''' Produces a geojson file with feature tag.
 
             Inputs
             ------
-                edges: List
-                    List of edges
-                nodes: List
-                    List of node coordinate tuples
                 properties: List
                     List of dicts where the index corresponds to edge index
                 fname:  LineString
@@ -504,9 +503,7 @@ class Highway:
             p["u"] = u
             p["v"] = v
             # Determine nearest catchment areas            
-            nearest_destin, destin_dist = self.nearest_destin_from_edge(i)
-            p["nearest_destin"] = nearest_destin
-            p["destin_dist"] = destin_dist  
+            p["nearest_destin"],p["distance_destin"] = self.nearest_destin_from_edge(i)
             # Determine highway class and corresponding assumed width          
             p["hiclass"] = self.hiclass[d['highway']]
             p["awidth"] = self.width[p["hiclass"]]
@@ -524,6 +521,50 @@ class Highway:
         }
         with open (fname,'w') as f:
             json.dump(out,f,indent=True)     
+
+    def geojson_nodes(self, fname, properties):
+        ''' Produces a geojson file with feature tag.
+
+            Inputs
+            ------
+                properties: List
+                    List of dicts where the index corresponds to node index
+                fname:  LineString
+                    Path to the file where the geojson file will be dumped
+            Output
+            ------
+                geojson file
+        '''
+        features = []
+        for n in properties:
+            try:
+                p = properties[n]
+            except (NameError, KeyError):
+                p = {}
+            u,v,d = e
+            # Generate properties
+            p["index"] = i
+            p["u"] = u
+            p["v"] = v
+            # Determine nearest catchment areas            
+            p["nearest_destin"],p["distance_destin"] = self.nearest_destin_from_edge(i)
+            # Determine highway class and corresponding assumed width          
+            p["hiclass"] = self.hiclass[d['highway']]
+            p["awidth"] = self.width[p["hiclass"]]
+            p.update(d)    
+            l = LineString([self.nodes[u],self.nodes[v]])
+            feature = {
+                "type": "Feature",
+                "properties": p,
+                "geometry": mapping(l)
+            }
+            features.append(feature)
+        out = {
+            "type": "FeatureCollection",
+            "features": features
+        }
+        with open (fname,'w') as f:
+            json.dump(out,f,indent=True)   
 
     def load_nodes(self):
         fname = '{0}/highway.nodes.gz'.format(folder(self.place))

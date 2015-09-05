@@ -455,26 +455,21 @@ class Sim:
         except AttributeError:
             self.load_agents()
         # Initiate properties
-        properties = {}
+        properties = [{} for _ in range(len(self.h.edges))]
         for scenario in self.scenarios:
             self.scenario = scenario
             self.load_results()
-            T = {}
+            edge_T = [[] for _ in range(len(self.h.edges))]
             # Iterate through all edges and gather agent times
+            # and create a list of agent times per edge
             for e,t in zip(self.E, self.T):
-                # Create a list of time per edge
-                try:
-                    T[e].append(t)
-                except KeyError:
-                    T[e] = [t]
-            # Consolidate into a single edge dictionary
-            for i in T:
-                try:
-                    properties[i]
-                except KeyError:
-                    properties[i] = {}
-                properties[i]["{0}_mean_time".format(scenario)] = np.mean(T[i])
-                properties[i]["{0}_stdv_time".format(scenario)] = np.std(T[i])
+                edge_T[e].append(t)
+            # Consolidate into a single list of dictionary
+            # where each item refers to an edge in order
+            for e in range(len(self.h.edges)):
+                if edge_T[e] != []:
+                    properties[e]["{0}_mean_time".format(scenario)] = np.mean(edge_T[e])
+                    properties[e]["{0}_stdv_time".format(scenario)] = np.std(edge_T[e])
         return properties
     
     def load_result_meta(self):
