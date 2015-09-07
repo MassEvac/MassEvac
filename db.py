@@ -11,7 +11,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from matplotlib import mlab
 from scipy.misc import imread
-from shapely.geometry import LineString,mapping
+from shapely.geometry import LineString,Point,mapping
 
 ''' Load the database configuration.
 '''
@@ -485,7 +485,7 @@ class Highway:
             ------
                 properties: List
                     List of dicts where the index corresponds to edge index
-                fname:  LineString
+                fname:  String
                     Path to the file where the geojson file will be dumped
             Output
             ------
@@ -537,26 +537,12 @@ class Highway:
         '''
         features = []
         for n in properties:
-            try:
-                p = properties[n]
-            except (NameError, KeyError):
-                p = {}
-            u,v,d = e
-            # Generate properties
-            p["index"] = i
-            p["u"] = u
-            p["v"] = v
-            # Determine nearest catchment areas            
-            p["nearest_destin"],p["distance_destin"] = self.nearest_destin_from_edge(i)
-            # Determine highway class and corresponding assumed width          
-            p["hiclass"] = self.hiclass[d['highway']]
-            p["awidth"] = self.width[p["hiclass"]]
-            p.update(d)    
-            l = LineString([self.nodes[u],self.nodes[v]])
+            p = properties[n]
+            p['index'] = n
             feature = {
                 "type": "Feature",
                 "properties": p,
-                "geometry": mapping(l)
+                "geometry": mapping(Point(self.nodes[n]))
             }
             features.append(feature)
         out = {
