@@ -642,6 +642,7 @@ class Highway:
             w = sum([self.W[e] for e in self.destin_edges[destin]])
             self.destin_width_dict[destin] = w
             self.destin_width.append(w)
+        
     
     def init_route(self):
         ''' Initialise route and route length dictionaries
