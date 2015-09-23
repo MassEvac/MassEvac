@@ -1,0 +1,10 @@
+*.pyc
+*.py~
+abm
+cities
+experiments
+examples
+logs
+previous
+.ipynb_checkpoints
+analysis

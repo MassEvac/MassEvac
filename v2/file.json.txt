@@ -1,0 +1,827 @@
+{
+ "Kingston upon Hull": {
+  "IN_NN": 253, 
+  "lon": -0.32957550000000002, 
+  "pop": 252650, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Kingston upon Hull/ff-n-252650-d-4f079b45.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Kingston upon Hull/ff-n-252650-d-4f079b45-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Kingston upon Hull/ia-n-252650-d-4f079b45.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Kingston upon Hull/ia-n-252650-d-4f079b45-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Kingston upon Hull/cd-n-252650-d-4f079b45.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Kingston upon Hull/cd-n-252650-d-4f079b45-et.png"
+  }, 
+  "II_NN": 160, 
+  "lat": 53.765870900000003
+ }, 
+ "Salford": {
+  "IN_NN": 138, 
+  "lon": -2.3627984, 
+  "pop": 271424, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Salford/ff-n-271424-d-273059d9.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Salford/ff-n-271424-d-273059d9-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Salford/ia-n-271424-d-273059d9.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Salford/ia-n-271424-d-273059d9-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Salford/cd-n-271424-d-273059d9.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Salford/cd-n-271424-d-273059d9-et.png"
+  }, 
+  "II_NN": 108, 
+  "lat": 53.481143799999998
+ }, 
+ "Stoke-on-Trent": {
+  "IN_NN": 220, 
+  "lon": -2.1457912000000001, 
+  "pop": 280782, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Stoke-on-Trent/ff-n-280782-d-78f53c30.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Stoke-on-Trent/ff-n-280782-d-78f53c30-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Stoke-on-Trent/ia-n-280782-d-78f53c30.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Stoke-on-Trent/ia-n-280782-d-78f53c30-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Stoke-on-Trent/cd-n-280782-d-78f53c30.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Stoke-on-Trent/cd-n-280782-d-78f53c30-et.png"
+  }, 
+  "II_NN": 120, 
+  "lat": 53.027211700000002
+ }, 
+ "Northampton": {
+  "IN_NN": 142, 
+  "lon": -0.86208600000000002, 
+  "pop": 223025, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Northampton/ff-n-223025-d-d106a3cc.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Northampton/ff-n-223025-d-d106a3cc-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Northampton/ia-n-223025-d-d106a3cc.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Northampton/ia-n-223025-d-d106a3cc-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Northampton/cd-n-223025-d-d106a3cc.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Northampton/cd-n-223025-d-d106a3cc-et.png"
+  }, 
+  "II_NN": 109, 
+  "lat": 52.237280900000002
+ }, 
+ "Aberdeen City": {
+  "IN_NN": 557, 
+  "lon": -2.2014694000000001, 
+  "pop": 211388, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Aberdeen City/ff-n-211388-d-1b116042.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Aberdeen City/ff-n-211388-d-1b116042-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Aberdeen City/ia-n-211388-d-1b116042.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Aberdeen City/ia-n-211388-d-1b116042-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Aberdeen City/cd-n-211388-d-1b116042.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Aberdeen City/cd-n-211388-d-1b116042-et.png"
+  }, 
+  "II_NN": 204, 
+  "lat": 57.153615199999997
+ }, 
+ "Peterborough": {
+  "IN_NN": 102, 
+  "lon": -0.26719959999999998, 
+  "pop": 128592, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Peterborough/ff-n-128592-d-e88cd8d4.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Peterborough/ff-n-128592-d-e88cd8d4-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Peterborough/ia-n-128592-d-e88cd8d4.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Peterborough/ia-n-128592-d-e88cd8d4-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Peterborough/cd-n-128592-d-e88cd8d4.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Peterborough/cd-n-128592-d-e88cd8d4-et.png"
+  }, 
+  "II_NN": 101, 
+  "lat": 52.604132200000002
+ }, 
+ "Portsmouth": {
+  "IN_NN": 467, 
+  "lon": -1.085135, 
+  "pop": 165920, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Portsmouth/ff-n-165920-d-d6a61eaa.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Portsmouth/ff-n-165920-d-d6a61eaa-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Portsmouth/ia-n-165920-d-d6a61eaa.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Portsmouth/ia-n-165920-d-d6a61eaa-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Portsmouth/cd-n-165920-d-d6a61eaa.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Portsmouth/cd-n-165920-d-d6a61eaa-et.png"
+  }, 
+  "II_NN": 190, 
+  "lat": 50.823880600000003
+ }, 
+ "Exeter District": {
+  "IN_NN": 269, 
+  "lon": -3.5151579000000002, 
+  "pop": 120830, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Exeter District/ff-n-120830-d-0ee8a10c.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Exeter District/ff-n-120830-d-0ee8a10c-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Exeter District/ia-n-120830-d-0ee8a10c.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Exeter District/ia-n-120830-d-0ee8a10c-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Exeter District/cd-n-120830-d-0ee8a10c.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Exeter District/cd-n-120830-d-0ee8a10c-et.png"
+  }, 
+  "II_NN": 139, 
+  "lat": 50.743104000000002
+ }, 
+ "Warrington": {
+  "IN_NN": 149, 
+  "lon": -2.5702541999999999, 
+  "pop": 211623, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Warrington/ff-n-211623-d-bef1abdf.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Warrington/ff-n-211623-d-bef1abdf-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Warrington/ia-n-211623-d-bef1abdf.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Warrington/ia-n-211623-d-bef1abdf-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Warrington/cd-n-211623-d-bef1abdf.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Warrington/cd-n-211623-d-bef1abdf-et.png"
+  }, 
+  "II_NN": 109, 
+  "lat": 53.381943200000002
+ }, 
+ "Sheffield": {
+  "IN_NN": 394, 
+  "lon": -1.5556555999999999, 
+  "pop": 531197, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Sheffield/ff-n-531197-d-263588bf.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Sheffield/ff-n-531197-d-263588bf-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Sheffield/ia-n-531197-d-263588bf.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Sheffield/ia-n-531197-d-263588bf-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Sheffield/cd-n-531197-d-263588bf.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Sheffield/cd-n-531197-d-263588bf-et.png"
+  }, 
+  "II_NN": 152, 
+  "lat": 53.404530200000004
+ }, 
+ "Swansea": {
+  "IN_NN": 323, 
+  "lon": -4.0844174000000004, 
+  "pop": 140483, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Swansea/ff-n-140483-d-27b47771.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Swansea/ff-n-140483-d-27b47771-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Swansea/ia-n-140483-d-27b47771.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Swansea/ia-n-140483-d-27b47771-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Swansea/cd-n-140483-d-27b47771.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Swansea/cd-n-140483-d-27b47771-et.png"
+  }, 
+  "II_NN": 133, 
+  "lat": 51.6631815
+ }, 
+ "Liverpool": {
+  "IN_NN": 685, 
+  "lon": -2.9145373000000001, 
+  "pop": 463501, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Liverpool/ff-n-463501-d-692bac3c.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Liverpool/ff-n-463501-d-692bac3c-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Liverpool/ia-n-463501-d-692bac3c.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Liverpool/ia-n-463501-d-692bac3c-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Liverpool/cd-n-463501-d-692bac3c.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Liverpool/cd-n-463501-d-692bac3c-et.png"
+  }, 
+  "II_NN": 251, 
+  "lat": 53.402255199999999
+ }, 
+ "Wolverhampton": {
+  "IN_NN": 191, 
+  "lon": -2.1191384000000002, 
+  "pop": 303609, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Wolverhampton/ff-n-303609-d-467dfae3.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Wolverhampton/ff-n-303609-d-467dfae3-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Wolverhampton/ia-n-303609-d-467dfae3.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Wolverhampton/ia-n-303609-d-467dfae3-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Wolverhampton/cd-n-303609-d-467dfae3.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Wolverhampton/cd-n-303609-d-467dfae3-et.png"
+  }, 
+  "II_NN": 113, 
+  "lat": 52.591455099999997
+ }, 
+ "Winchester": {
+  "IN_NN": 319, 
+  "lon": -1.2442584999999999, 
+  "pop": 174747, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Winchester/ff-n-174747-d-89168741.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Winchester/ff-n-174747-d-89168741-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Winchester/ia-n-174747-d-89168741.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Winchester/ia-n-174747-d-89168741-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Winchester/cd-n-174747-d-89168741.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Winchester/cd-n-174747-d-89168741-et.png"
+  }, 
+  "II_NN": 135, 
+  "lat": 51.032007900000004
+ }, 
+ "Chichester": {
+  "IN_NN": 114, 
+  "lon": -0.70909, 
+  "pop": 116557, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Chichester/ff-n-116557-d-fe626da9.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Chichester/ff-n-116557-d-fe626da9-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Chichester/ia-n-116557-d-fe626da9.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Chichester/ia-n-116557-d-fe626da9-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Chichester/cd-n-116557-d-fe626da9.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Chichester/cd-n-116557-d-fe626da9-et.png"
+  }, 
+  "II_NN": 102, 
+  "lat": 50.909322000000003
+ }, 
+ "Norwich": {
+  "IN_NN": 216, 
+  "lon": 1.284378, 
+  "pop": 131419, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Norwich/ff-n-131419-d-bec15f2c.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Norwich/ff-n-131419-d-bec15f2c-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Norwich/ia-n-131419-d-bec15f2c.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Norwich/ia-n-131419-d-bec15f2c-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Norwich/cd-n-131419-d-bec15f2c.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Norwich/cd-n-131419-d-bec15f2c-et.png"
+  }, 
+  "II_NN": 114, 
+  "lat": 52.639969999999998
+ }, 
+ "City of Westminster": {
+  "IN_NN": 669, 
+  "lon": -0.1624187, 
+  "pop": 341105, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/City of Westminster/ff-n-341105-d-b398a6d5.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/City of Westminster/ff-n-341105-d-b398a6d5-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/City of Westminster/ia-n-341105-d-b398a6d5.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/City of Westminster/ia-n-341105-d-b398a6d5-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/City of Westminster/cd-n-341105-d-b398a6d5.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/City of Westminster/cd-n-341105-d-b398a6d5-et.png"
+  }, 
+  "II_NN": 268, 
+  "lat": 51.512227600000003
+ }, 
+ "Dundee City": {
+  "IN_NN": 528, 
+  "lon": -2.9949865, 
+  "pop": 160683, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Dundee City/ff-n-160683-d-db333567.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Dundee City/ff-n-160683-d-db333567-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Dundee City/ia-n-160683-d-db333567.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Dundee City/ia-n-160683-d-db333567-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Dundee City/cd-n-160683-d-db333567.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Dundee City/cd-n-160683-d-db333567-et.png"
+  }, 
+  "II_NN": 202, 
+  "lat": 56.499040299999997
+ }, 
+ "Sunderland": {
+  "IN_NN": 253, 
+  "lon": -1.4571615, 
+  "pop": 300108, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Sunderland/ff-n-300108-d-ad6d2822.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Sunderland/ff-n-300108-d-ad6d2822-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Sunderland/ia-n-300108-d-ad6d2822.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Sunderland/ia-n-300108-d-ad6d2822-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Sunderland/cd-n-300108-d-ad6d2822.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Sunderland/cd-n-300108-d-ad6d2822-et.png"
+  }, 
+  "II_NN": 123, 
+  "lat": 54.872292000000002
+ }, 
+ "County Durham": {
+  "IN_NN": 145, 
+  "lon": -1.8185914000000001, 
+  "pop": 486517, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/County Durham/ff-n-486517-d-9af8679f.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/County Durham/ff-n-486517-d-9af8679f-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/County Durham/ia-n-486517-d-9af8679f.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/County Durham/ia-n-486517-d-9af8679f-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/County Durham/cd-n-486517-d-9af8679f.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/County Durham/cd-n-486517-d-9af8679f-et.png"
+  }, 
+  "II_NN": 105, 
+  "lat": 54.686261399999999
+ }, 
+ "Newcastle upon Tyne": {
+  "IN_NN": 309, 
+  "lon": -1.6632515999999999, 
+  "pop": 287104, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Newcastle upon Tyne/ff-n-287104-d-e5a89252.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Newcastle upon Tyne/ff-n-287104-d-e5a89252-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Newcastle upon Tyne/ia-n-287104-d-e5a89252.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Newcastle upon Tyne/ia-n-287104-d-e5a89252-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Newcastle upon Tyne/cd-n-287104-d-e5a89252.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Newcastle upon Tyne/cd-n-287104-d-e5a89252-et.png"
+  }, 
+  "II_NN": 142, 
+  "lat": 55.019879400000001
+ }, 
+ "Leeds": {
+  "IN_NN": 289, 
+  "lon": -1.5335780999999999, 
+  "pop": 792046, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Leeds/ff-n-792046-d-59ebb0cc.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Leeds/ff-n-792046-d-59ebb0cc-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Leeds/ia-n-792046-d-59ebb0cc.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Leeds/ia-n-792046-d-59ebb0cc-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Leeds/cd-n-792046-d-59ebb0cc.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Leeds/cd-n-792046-d-59ebb0cc-et.png"
+  }, 
+  "II_NN": 143, 
+  "lat": 53.8343737
+ }, 
+ "York": {
+  "IN_NN": 151, 
+  "lon": -1.0921320000000001, 
+  "pop": 146870, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/York/ff-n-146870-d-e4c1e1fe.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/York/ff-n-146870-d-e4c1e1fe-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/York/ia-n-146870-d-e4c1e1fe.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/York/ia-n-146870-d-e4c1e1fe-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/York/cd-n-146870-d-e4c1e1fe.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/York/cd-n-146870-d-e4c1e1fe-et.png"
+  }, 
+  "II_NN": 142, 
+  "lat": 53.966723500000001
+ }, 
+ "Oxford": {
+  "IN_NN": 301, 
+  "lon": -1.2244311000000001, 
+  "pop": 149966, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Oxford/ff-n-149966-d-cbef182d.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Oxford/ff-n-149966-d-cbef182d-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Oxford/ia-n-149966-d-cbef182d.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Oxford/ia-n-149966-d-cbef182d-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Oxford/cd-n-149966-d-cbef182d.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Oxford/cd-n-149966-d-cbef182d-et.png"
+  }, 
+  "II_NN": 144, 
+  "lat": 51.7566439
+ }, 
+ "Manchester": {
+  "IN_NN": 281, 
+  "lon": -2.2382583999999999, 
+  "pop": 486059, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Manchester/ff-n-486059-d-302d9642.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Manchester/ff-n-486059-d-302d9642-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Manchester/ia-n-486059-d-302d9642.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Manchester/ia-n-486059-d-302d9642-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Manchester/cd-n-486059-d-302d9642.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Manchester/cd-n-486059-d-302d9642-et.png"
+  }, 
+  "II_NN": 154, 
+  "lat": 53.443888899999997
+ }, 
+ "St Albans": {
+  "IN_NN": 173, 
+  "lon": -0.34223730000000002, 
+  "pop": 168922, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/St Albans/ff-n-168922-d-0f0ce0a6.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/St Albans/ff-n-168922-d-0f0ce0a6-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/St Albans/ia-n-168922-d-0f0ce0a6.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/St Albans/ia-n-168922-d-0f0ce0a6-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/St Albans/cd-n-168922-d-0f0ce0a6.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/St Albans/cd-n-168922-d-0f0ce0a6-et.png"
+  }, 
+  "II_NN": 119, 
+  "lat": 51.767331300000002
+ }, 
+ "Brighton": {
+  "IN_NN": 166, 
+  "lon": -0.1057447, 
+  "pop": 109864, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Brighton/ff-n-109864-d-84d126a3.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Brighton/ff-n-109864-d-84d126a3-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Brighton/ia-n-109864-d-84d126a3.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Brighton/ia-n-109864-d-84d126a3-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Brighton/cd-n-109864-d-84d126a3.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Brighton/cd-n-109864-d-84d126a3-et.png"
+  }, 
+  "II_NN": 114, 
+  "lat": 50.835954600000001
+ }, 
+ "Bradford": {
+  "IN_NN": 245, 
+  "lon": -1.8458638000000001, 
+  "pop": 531426, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Bradford/ff-n-531426-d-2a5d4db0.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Bradford/ff-n-531426-d-2a5d4db0-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Bradford/ia-n-531426-d-2a5d4db0.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Bradford/ia-n-531426-d-2a5d4db0-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Bradford/cd-n-531426-d-2a5d4db0.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Bradford/cd-n-531426-d-2a5d4db0-et.png"
+  }, 
+  "II_NN": 122, 
+  "lat": 53.846541100000003
+ }, 
+ "Southampton": {
+  "IN_NN": 246, 
+  "lon": -1.3984341, 
+  "pop": 244678, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Southampton/ff-n-244678-d-883e422f.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Southampton/ff-n-244678-d-883e422f-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Southampton/ia-n-244678-d-883e422f.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Southampton/ia-n-244678-d-883e422f-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Southampton/cd-n-244678-d-883e422f.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Southampton/cd-n-244678-d-883e422f-et.png"
+  }, 
+  "II_NN": 138, 
+  "lat": 50.925781800000003
+ }, 
+ "Milton Keynes": {
+  "IN_NN": 142, 
+  "lon": -0.71984879999999996, 
+  "pop": 201083, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Milton Keynes/ff-n-201083-d-75855482.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Milton Keynes/ff-n-201083-d-75855482-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Milton Keynes/ia-n-201083-d-75855482.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Milton Keynes/ia-n-201083-d-75855482-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Milton Keynes/cd-n-201083-d-75855482.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Milton Keynes/cd-n-201083-d-75855482-et.png"
+  }, 
+  "II_NN": 106, 
+  "lat": 52.091043300000003
+ }, 
+ "Coventry": {
+  "IN_NN": 523, 
+  "lon": -1.5201726, 
+  "pop": 348171, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Coventry/ff-n-348171-d-69a3b8e9.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Coventry/ff-n-348171-d-69a3b8e9-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Coventry/ia-n-348171-d-69a3b8e9.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Coventry/ia-n-348171-d-69a3b8e9-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Coventry/cd-n-348171-d-69a3b8e9.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Coventry/cd-n-348171-d-69a3b8e9-et.png"
+  }, 
+  "II_NN": 193, 
+  "lat": 52.415832399999999
+ }, 
+ "Herefordshire": {
+  "IN_NN": 120, 
+  "lon": -2.7294233000000001, 
+  "pop": 141112, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Herefordshire/ff-n-141112-d-4d201084.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Herefordshire/ff-n-141112-d-4d201084-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Herefordshire/ia-n-141112-d-4d201084.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Herefordshire/ia-n-141112-d-4d201084-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Herefordshire/cd-n-141112-d-4d201084.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Herefordshire/cd-n-141112-d-4d201084-et.png"
+  }, 
+  "II_NN": 104, 
+  "lat": 52.107455100000003
+ }, 
+ "Wakefield": {
+  "IN_NN": 134, 
+  "lon": -1.3902083000000001, 
+  "pop": 350221, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Wakefield/ff-n-350221-d-7ef6827c.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Wakefield/ff-n-350221-d-7ef6827c-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Wakefield/ia-n-350221-d-7ef6827c.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Wakefield/ia-n-350221-d-7ef6827c-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Wakefield/cd-n-350221-d-7ef6827c.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Wakefield/cd-n-350221-d-7ef6827c-et.png"
+  }, 
+  "II_NN": 108, 
+  "lat": 53.650600400000002
+ }, 
+ "Plymouth": {
+  "IN_NN": 309, 
+  "lon": -4.1068645000000004, 
+  "pop": 258595, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Plymouth/ff-n-258595-d-c385d56e.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Plymouth/ff-n-258595-d-c385d56e-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Plymouth/ia-n-258595-d-c385d56e.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Plymouth/ia-n-258595-d-c385d56e-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Plymouth/cd-n-258595-d-c385d56e.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Plymouth/cd-n-258595-d-c385d56e-et.png"
+  }, 
+  "II_NN": 188, 
+  "lat": 50.3887322
+ }, 
+ "Glasgow City": {
+  "IN_NN": 534, 
+  "lon": -4.2356151999999998, 
+  "pop": 713937, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Glasgow City/ff-n-713937-d-61e7cf80.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Glasgow City/ff-n-713937-d-61e7cf80-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Glasgow City/ia-n-713937-d-61e7cf80.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Glasgow City/ia-n-713937-d-61e7cf80-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Glasgow City/cd-n-713937-d-61e7cf80.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Glasgow City/cd-n-713937-d-61e7cf80-et.png"
+  }, 
+  "II_NN": 223, 
+  "lat": 55.854535400000003
+ }, 
+ "Newport": {
+  "IN_NN": 101, 
+  "lon": -2.9520678999999999, 
+  "pop": 136113, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Newport/ff-n-136113-d-51382458.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Newport/ff-n-136113-d-51382458-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Newport/ia-n-136113-d-51382458.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Newport/ia-n-136113-d-51382458-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Newport/cd-n-136113-d-51382458.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Newport/cd-n-136113-d-51382458-et.png"
+  }, 
+  "II_NN": 100, 
+  "lat": 51.582509999999999
+ }, 
+ "Bath & North East Somerset": {
+  "IN_NN": 106, 
+  "lon": -2.4977307999999998, 
+  "pop": 186064, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Bath & North East Somerset/ff-n-186064-d-78df2422.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Bath & North East Somerset/ff-n-186064-d-78df2422-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Bath & North East Somerset/ia-n-186064-d-78df2422.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Bath & North East Somerset/ia-n-186064-d-78df2422-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Bath & North East Somerset/cd-n-186064-d-78df2422.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Bath & North East Somerset/cd-n-186064-d-78df2422-et.png"
+  }, 
+  "II_NN": 102, 
+  "lat": 51.349143099999999
+ }, 
+ "Derby": {
+  "IN_NN": 201, 
+  "lon": -1.4686081, 
+  "pop": 256318, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Derby/ff-n-256318-d-7e29b996.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Derby/ff-n-256318-d-7e29b996-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Derby/ia-n-256318-d-7e29b996.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Derby/ia-n-256318-d-7e29b996-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Derby/cd-n-256318-d-7e29b996.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Derby/cd-n-256318-d-7e29b996-et.png"
+  }, 
+  "II_NN": 122, 
+  "lat": 52.913374300000001
+ }, 
+ "City of Edinburgh": {
+  "IN_NN": 621, 
+  "lon": -3.2903503999999999, 
+  "pop": 490763, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/City of Edinburgh/ff-n-490763-d-aea3e713.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/City of Edinburgh/ff-n-490763-d-aea3e713-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/City of Edinburgh/ia-n-490763-d-aea3e713.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/City of Edinburgh/ia-n-490763-d-aea3e713-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/City of Edinburgh/cd-n-490763-d-aea3e713.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/City of Edinburgh/cd-n-490763-d-aea3e713-et.png"
+  }, 
+  "II_NN": 265, 
+  "lat": 55.912475700000002
+ }, 
+ "Telford and Wrekin": {
+  "IN_NN": 100, 
+  "lon": -2.4745512999999999, 
+  "pop": 123499, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Telford and Wrekin/ff-n-123499-d-8a9f6c9c.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Telford and Wrekin/ff-n-123499-d-8a9f6c9c-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Telford and Wrekin/ia-n-123499-d-8a9f6c9c.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Telford and Wrekin/ia-n-123499-d-8a9f6c9c-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Telford and Wrekin/cd-n-123499-d-8a9f6c9c.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Telford and Wrekin/cd-n-123499-d-8a9f6c9c-et.png"
+  }, 
+  "II_NN": 100, 
+  "lat": 52.728453199999997
+ }, 
+ "Gloucester": {
+  "IN_NN": 301, 
+  "lon": -2.2456974999999999, 
+  "pop": 123397, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Gloucester/ff-n-123397-d-c439bea2.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Gloucester/ff-n-123397-d-c439bea2-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Gloucester/ia-n-123397-d-c439bea2.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Gloucester/ia-n-123397-d-c439bea2-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Gloucester/cd-n-123397-d-c439bea2.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Gloucester/cd-n-123397-d-c439bea2-et.png"
+  }, 
+  "II_NN": 168, 
+  "lat": 51.847969900000002
+ }, 
+ "Cambridge": {
+  "IN_NN": 167, 
+  "lon": 0.14025670000000001, 
+  "pop": 126948, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Cambridge/ff-n-126948-d-a5f882f6.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Cambridge/ff-n-126948-d-a5f882f6-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Cambridge/ia-n-126948-d-a5f882f6.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Cambridge/ia-n-126948-d-a5f882f6-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Cambridge/cd-n-126948-d-a5f882f6.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Cambridge/cd-n-126948-d-a5f882f6-et.png"
+  }, 
+  "II_NN": 120, 
+  "lat": 52.1956439
+ }, 
+ "Dacorum": {
+  "IN_NN": 192, 
+  "lon": -0.59322649999999999, 
+  "pop": 174854, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Dacorum/ff-n-174854-d-f4f8ef31.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Dacorum/ff-n-174854-d-f4f8ef31-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Dacorum/ia-n-174854-d-f4f8ef31.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Dacorum/ia-n-174854-d-f4f8ef31-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Dacorum/cd-n-174854-d-f4f8ef31.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Dacorum/cd-n-174854-d-f4f8ef31-et.png"
+  }, 
+  "II_NN": 123, 
+  "lat": 51.771357500000001
+ }, 
+ "Leicester": {
+  "IN_NN": 394, 
+  "lon": -1.1254188000000001, 
+  "pop": 324773, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Leicester/ff-n-324773-d-e30c5c9c.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Leicester/ff-n-324773-d-e30c5c9c-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Leicester/ia-n-324773-d-e30c5c9c.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Leicester/ia-n-324773-d-e30c5c9c-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Leicester/cd-n-324773-d-e30c5c9c.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Leicester/cd-n-324773-d-e30c5c9c-et.png"
+  }, 
+  "II_NN": 165, 
+  "lat": 52.637097199999999
+ }, 
+ "Bracknell Forest": {
+  "IN_NN": 171, 
+  "lon": -0.73740410000000001, 
+  "pop": 142314, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Bracknell Forest/ff-n-142314-d-30d3c211.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Bracknell Forest/ff-n-142314-d-30d3c211-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Bracknell Forest/ia-n-142314-d-30d3c211.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Bracknell Forest/ia-n-142314-d-30d3c211-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Bracknell Forest/cd-n-142314-d-30d3c211.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Bracknell Forest/cd-n-142314-d-30d3c211-et.png"
+  }, 
+  "II_NN": 108, 
+  "lat": 51.4113124
+ }, 
+ "Welwyn Hatfield": {
+  "IN_NN": 297, 
+  "lon": -0.192158, 
+  "pop": 137176, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Welwyn Hatfield/ff-n-137176-d-bdaffa56.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Welwyn Hatfield/ff-n-137176-d-bdaffa56-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Welwyn Hatfield/ia-n-137176-d-bdaffa56.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Welwyn Hatfield/ia-n-137176-d-bdaffa56-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Welwyn Hatfield/cd-n-137176-d-bdaffa56.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Welwyn Hatfield/cd-n-137176-d-bdaffa56-et.png"
+  }, 
+  "II_NN": 137, 
+  "lat": 51.774434200000002
+ }, 
+ "Nottingham": {
+  "IN_NN": 337, 
+  "lon": -1.1809339000000001, 
+  "pop": 310196, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Nottingham/ff-n-310196-d-94541799.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Nottingham/ff-n-310196-d-94541799-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Nottingham/ia-n-310196-d-94541799.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Nottingham/ia-n-310196-d-94541799-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Nottingham/cd-n-310196-d-94541799.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Nottingham/cd-n-310196-d-94541799-et.png"
+  }, 
+  "II_NN": 176, 
+  "lat": 52.956525599999999
+ }, 
+ "Blackpool": {
+  "IN_NN": 169, 
+  "lon": -3.0171888, 
+  "pop": 137010, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Blackpool/ff-n-137010-d-1d4a13a1.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Blackpool/ff-n-137010-d-1d4a13a1-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Blackpool/ia-n-137010-d-1d4a13a1.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Blackpool/ia-n-137010-d-1d4a13a1-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Blackpool/cd-n-137010-d-1d4a13a1.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Blackpool/cd-n-137010-d-1d4a13a1-et.png"
+  }, 
+  "II_NN": 117, 
+  "lat": 53.823461000000002
+ }, 
+ "Birmingham": {
+  "IN_NN": 571, 
+  "lon": -1.8879147999999999, 
+  "pop": 1103409, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Birmingham/ff-n-1103409-d-2fd186c8.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Birmingham/ff-n-1103409-d-2fd186c8-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Birmingham/ia-n-1103409-d-2fd186c8.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Birmingham/ia-n-1103409-d-2fd186c8-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Birmingham/cd-n-1103409-d-2fd186c8.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Birmingham/cd-n-1103409-d-2fd186c8-et.png"
+  }, 
+  "II_NN": 213, 
+  "lat": 52.493003100000003
+ }, 
+ "Basildon": {
+  "IN_NN": 189, 
+  "lon": 0.4353746, 
+  "pop": 188901, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Basildon/ff-n-188901-d-cc49e6f4.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Basildon/ff-n-188901-d-cc49e6f4-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Basildon/ia-n-188901-d-cc49e6f4.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Basildon/ia-n-188901-d-cc49e6f4-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Basildon/cd-n-188901-d-cc49e6f4.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Basildon/cd-n-188901-d-cc49e6f4-et.png"
+  }, 
+  "II_NN": 114, 
+  "lat": 51.589418799999997
+ }, 
+ "Lichfield": {
+  "IN_NN": 120, 
+  "lon": -1.7641426, 
+  "pop": 171198, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Lichfield/ff-n-171198-d-14092846.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Lichfield/ff-n-171198-d-14092846-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Lichfield/ia-n-171198-d-14092846.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Lichfield/ia-n-171198-d-14092846-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Lichfield/cd-n-171198-d-14092846.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Lichfield/cd-n-171198-d-14092846-et.png"
+  }, 
+  "II_NN": 100, 
+  "lat": 52.706245899999999
+ }, 
+ "Cardiff": {
+  "IN_NN": 103, 
+  "lon": -3.2008543, 
+  "pop": 157744, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Cardiff/ff-n-157744-d-9af9903a.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Cardiff/ff-n-157744-d-9af9903a-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Cardiff/ia-n-157744-d-9af9903a.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Cardiff/ia-n-157744-d-9af9903a-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Cardiff/cd-n-157744-d-9af9903a.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Cardiff/cd-n-157744-d-9af9903a-et.png"
+  }, 
+  "II_NN": 101, 
+  "lat": 51.504088199999998
+ }, 
+ "Crawley": {
+  "IN_NN": 171, 
+  "lon": -0.1949525, 
+  "pop": 122204, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Crawley/ff-n-122204-d-4a2a47d7.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Crawley/ff-n-122204-d-4a2a47d7-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Crawley/ia-n-122204-d-4a2a47d7.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Crawley/ia-n-122204-d-4a2a47d7-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Crawley/cd-n-122204-d-4a2a47d7.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Crawley/cd-n-122204-d-4a2a47d7-et.png"
+  }, 
+  "II_NN": 119, 
+  "lat": 51.125056299999997
+ }, 
+ "City of Bristol": {
+  "IN_NN": 396, 
+  "lon": -2.6104992999999999, 
+  "pop": 276080, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/City of Bristol/ff-n-276080-d-cbc764c0.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/City of Bristol/ff-n-276080-d-cbc764c0-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/City of Bristol/ia-n-276080-d-cbc764c0.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/City of Bristol/ia-n-276080-d-cbc764c0-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/City of Bristol/cd-n-276080-d-cbc764c0.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/City of Bristol/cd-n-276080-d-cbc764c0-et.png"
+  }, 
+  "II_NN": 239, 
+  "lat": 51.480580600000003
+ }, 
+ "Canterbury": {
+  "IN_NN": 114, 
+  "lon": 1.0919444, 
+  "pop": 147947, 
+  "content": {
+   "Video: No Interaction, No Intervention (NN)": "abm/density/Canterbury/ff-n-147947-d-fb849d9e.mp4", 
+   "Histo: No Interaction, No Intervention (NN)": "abm/density/Canterbury/ff-n-147947-d-fb849d9e-et.png", 
+   "Video: With Interaction, No Intervention (IN)": "abm/density/Canterbury/ia-n-147947-d-fb849d9e.mp4", 
+   "Histo: With Interaction, No Intervention (IN)": "abm/density/Canterbury/ia-n-147947-d-fb849d9e-et.png", 
+   "Video: With Interaction, With Intervention (II)": "abm/density/Canterbury/cd-n-147947-d-fb849d9e.mp4", 
+   "Histo: With Interaction, With Intervention (II)": "abm/density/Canterbury/cd-n-147947-d-fb849d9e-et.png"
+  }, 
+  "II_NN": 101, 
+  "lat": 51.268979999999999
+ }
+}
