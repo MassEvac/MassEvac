@@ -10,3 +10,5 @@ flood
 *.pyc
 .dbconfig
 _tmp*
+*.var
+*.pickle
