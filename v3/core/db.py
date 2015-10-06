@@ -284,7 +284,7 @@ class Highway:
                     planet_osm_line AS r,
                     (SELECT ST_GeomFromText(%s,4326) AS way) AS s
                     WHERE r.highway <> %s AND ST_Intersects(r.way, s.way);"""
-            data = (self.boundary.wkt,)
+            data = (self.boundary.wkt,'',)
             self.result = Query(SQL,data).result
             # All nodes that appear on the edges
             all_nodes = []

@@ -934,6 +934,7 @@ class Sim:
                             count_last_frames = count_last_frames + 1
                         yield tstep
                         tstep = tstep + 1
+                start_time = time.time()
                 # Call the animator.  blit=True means only re-draw the parts that have changed.
                 self.anim = animation.FuncAnimation(fig=self.fig, func=sim_animate, init_func=sim_init,
                                        frames=sim_frames(), interval=20, blit=False)
@@ -954,6 +955,9 @@ class Sim:
                 self.T = [round(t,2) for t in self.T]
                 # Convert this to a numpy array as it will be easier to work with as opposed to a list!
                 self.KP_tstep = np.array(self.KP_tstep,dtype=np.int)
+                self.execution_time = time.time()-start_time
+                print 'Execution took {:0.3f} seconds.'.format(self.execution_time)
+
                 self.save_results()
                 success += 1
         return success
