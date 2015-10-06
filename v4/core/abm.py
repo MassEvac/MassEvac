@@ -301,9 +301,6 @@ class Sim:
         self.p = db.Population(place,fresh=self.fresh)
         # If the number of agents is not defined, determine the population by multiplying the 2000 population by p_factor
         self.n = int(sum(self.p.pop) * p_factor)
-        # Which method to use? None is default. 'dict' uses the dict method
-        self.method = None
-
         
     def destin_hash(self):
         ''' Generate a hash for the list of destins.
@@ -405,7 +402,6 @@ class Sim:
             # Determine number of agents that are allowed on a given edge
             self.h.G[u][v]['capacity'] = int(settings[self.scenario]['kCap']*d['area'])
             # Reset the current agent count
-            self.h.G[u][v]['queue'] = []
             self.h.G[u][v]['queue_length'] = 0
         # The following initial state of agents takes time to compute, save to cache
         # --------------------------------------------------------------------------
@@ -470,7 +466,6 @@ class Sim:
                 # Determine the node that the agent is travelling to
                 # Save the initial position of the agent
                 # Add to the number of agents on that link
-                self.h.G[u][v]['queue'].append(agent)
                 self.h.G[u][v]['queue_length'] += 1
                 density = self.density(self.h.G[u][v])
                 velocity = fd.v_dict[density]
@@ -514,137 +509,78 @@ class Sim:
 
                 print '\n Time: {:0.4f} Agents Left: {}'.format(self.tstep, self.agents_left)
 
-                edge_list = self.h.G.edges(data=True)
-
+                # Start the timer
                 start_time = time.time()
-                if self.method == 'dict':
-                    while self.agents_left:
-                        self.loop_this = True
-                        try:
-                            random.shuffle(self.agents_per_tstep[self.tstep])
-                        except KeyError:
-                            # There are no agents awaiting action in this timestep so pass
-                            self.loop_this = False
-                        if self.loop_this:
-                            print 'Agents acting in tstep {}: {} of {}'.format(self.tstep,len(self.agents_per_tstep[self.tstep]),self.agents_left)
-                            # Loop through every agent due action in this timestep
-                            for self.agent in self.agents_per_tstep[self.tstep]:
-                                # Loop until the agent action_time exceeds the sim_time
-                                self.add_agent = True
-                                while self.agent.action_time < self.tstep + self.tstep_length:
-                                    # Determine the edge that the agent is on
-                                    u,v = self.agent.edge
-                                    edge = self.h.G[u][v]
-                                    # print self.agent.action_time, self.tstep
-                                    # If this is the last edge
-                                    if v == edge['nearest_destin']:
-                                        # Decrement the number of agents left
-                                        self.agents_left = self.agents_left - 1
-                                        # Remove the agent from the queue
+                while self.agents_left:
+                    self.loop_this = True
+                    try:
+                        random.shuffle(self.agents_per_tstep[self.tstep])
+                    except KeyError:
+                        # There are no agents awaiting action in this timestep so pass
+                        self.loop_this = False
+                    if self.loop_this:
+                        print 'Agents acting in tstep {}: {} of {}'.format(self.tstep,len(self.agents_per_tstep[self.tstep]),self.agents_left)
+                        # Loop through every agent due action in this timestep
+                        for self.agent in self.agents_per_tstep[self.tstep]:
+                            # Loop until the agent action_time exceeds the sim_time
+                            self.add_agent = True
+                            while self.agent.action_time < self.tstep + self.tstep_length:
+                                # Determine the edge that the agent is on
+                                u,v = self.agent.edge
+                                edge = self.h.G[u][v]
+                                # print self.agent.action_time, self.tstep
+                                # If this is the last edge
+                                if v == edge['nearest_destin']:
+                                    # Decrement the number of agents left
+                                    self.agents_left = self.agents_left - 1
+                                    # Remove the agent from the queue
+                                    edge['queue_length'] = edge['queue_length'] - 1
+                                    if edge['queue_length'] < 0:
+                                        raise ValueError
+                                    self.agent.destin = v
+                                    # print self.agent
+                                    # Print the simulation time
+                                    print '\n Time: {:0.4f} Agents Left: {}'.format(self.agent.action_time, self.agents_left)
+                                    self.add_agent = False
+                                    # print 'break 1'
+                                    break
+                                else:
+                                    # Determine the new edge
+                                    new_u = v
+                                    new_v = self.h.route[edge['nearest_destin']][v]
+                                    new_edge = self.h.G[new_u][new_v]
+                                    # Only move the agent if there is capacity in the new edge
+                                    if new_edge['capacity'] > new_edge['queue_length']:
+                                        # Remove the agent from the old edge
                                         edge['queue_length'] = edge['queue_length'] - 1
-                                        # edge['queue'].remove(self.agent)
+                                        # Add agent to the new edge
+                                        new_edge['queue_length'] = new_edge['queue_length'] + 1
                                         if edge['queue_length'] < 0:
                                             raise ValueError
-                                        self.agent.destin = v
-                                        # print self.agent
-                                        # Print the simulation time
-                                        print '\n Time: {:0.4f} Agents Left: {}'.format(self.agent.action_time, self.agents_left)
-                                        self.add_agent = False
-                                        # print 'break 1'
-                                        break
+                                        # Determine the next time to take action depending on:
+                                        #   - Link length
+                                        #   - Link density
+                                        # print self.density(new_edge), new_u,new_v,' density'
+                                        self.agent.action_time += new_edge['distance']/fd.v_dict[self.density(new_edge)]
+                                        # Assign new edge to the agent
+                                        self.agent.edge = (new_u,new_v)
                                     else:
-                                        # Determine the new edge
-                                        new_u = v
-                                        new_v = self.h.route[edge['nearest_destin']][v]
-                                        new_edge = self.h.G[new_u][new_v]
-                                        # Only move the agent if there is capacity in the new edge
-                                        if new_edge['capacity'] > new_edge['queue_length']:
-                                            # Remove the agent from the old edge
-                                            edge['queue_length'] = edge['queue_length'] - 1
-                                            # edge['queue'].remove(self.agent)
-                                            # Add agent to the new edge
-                                            new_edge['queue_length'] = new_edge['queue_length'] + 1
-                                            if edge['queue_length'] < 0:
-                                                raise ValueError
-                                            # new_edge['queue'].append(self.agent)
-                                            # Determine the next time to take action depending on:
-                                            #   - Link length
-                                            #   - Link density
-                                            # print self.density(new_edge), new_u,new_v,' density'
-                                            self.agent.action_time += new_edge['distance']/fd.v_dict[self.density(new_edge)]
-                                            # Assign new edge to the agent
-                                            self.agent.edge = (new_u,new_v)
-                                        else:
-                                            # If there is no capacity, wait till the next time step
-                                            self.agent.action_time += self.tstep_length
-                                            # print new_edge['capacity'], new_edge['queue_length']
-                                            break
-                                if self.add_agent:
-                                    try:
-                                        self.agents_per_tstep[int(self.agent.action_time)].append(self.agent)
-                                    except KeyError:
-                                        self.agents_per_tstep[int(self.agent.action_time)] = [self.agent]
-                        # Delete list of agents that were processed in this timestep to free up memory
-                        # try:
-                        #     del self.agents_per_tstep[self.tstep]
-                        # except KeyError:
-                        #     pass
-                        # Increment timestep
-                        self.tstep += self.tstep_length
-                else:
-                    # Loop until the number of agents_left is 0
-                    while self.agents_left:
-                        # Increment the timestep
-                        self.tstep += 1
-                        # Randomise the edge list
-                        random.shuffle(edge_list)
-                        # Loop through all the edges
-                        for u,v,edge in edge_list:
-                            # loop_edge is True if the queue is not empty
-                            loop_edge = True
-                            while loop_edge and edge['queue']:
-                                # Loop through every agent within sim_time
-                                self.agent = edge['queue'][0]
-                                # If the this agent's action time exceeds the sim time,
-                                # Assume that the rest of the agents of the queue do too
-                                # So stop looping over this edge
-                                if self.agent.action_time > self.tstep:
-                                    break
-                                # Loop until the agent action_time exceeds the sim_time
-                                while self.agent.action_time <= self.tstep:
-                                    # print agent.action_time, self.tstep
-                                    # If this is the last edge
-                                    if v == edge['nearest_destin']:
-                                        # Decrement the number of agents left
-                                        self.agents_left -= 1
-                                        # Remove the agent from the queue                                    
-                                        edge['queue'].remove(self.agent)
-                                        self.agent.destin = v
-                                        # Print the simulation time
-                                        print '\n Time: {:0.4f} Agents Left: {}'.format(self.agent.action_time, self.agents_left)
+                                        # If there is no capacity, wait till the next time step
+                                        self.agent.action_time += self.tstep_length
+                                        # print new_edge['capacity'], new_edge['queue_length']
                                         break
-                                    else:
-                                        # Determine the new edge
-                                        new_u = v
-                                        new_v = self.h.route[edge['nearest_destin']][v]
-                                        new_edge = self.h.G[new_u][new_v]
-                                        # Only move the agent if there is capacity in the new edge
-                                        if new_edge['capacity'] > len(new_edge['queue']):
-                                            # Remove the agent from the old edge
-                                            edge['queue'].remove(self.agent)
-                                            # Add agent to the new edge
-                                            new_edge['queue'].append(self.agent)
-                                            # Determine the next time to take action depending on:
-                                            #   - Link length
-                                            #   - Link density
-                                            self.agent.action_time += new_edge['distance']/fd.v_dict[self.density(new_edge)]
-                                            # Assign new edge to the agent
-                                            u,v,edge = new_u,new_v,new_edge
-                                        else:
-                                            # If there is no capacity, wait till the next time step
-                                            self.agent.action_time += self.tstep_length
-                                            loop_edge = False
-                                            break
+                            if self.add_agent:
+                                try:
+                                    self.agents_per_tstep[int(self.agent.action_time)].append(self.agent)
+                                except KeyError:
+                                    self.agents_per_tstep[int(self.agent.action_time)] = [self.agent]
+                    # Delete list of agents that were processed in this timestep to free up memory
+                    # try:
+                    #     del self.agents_per_tstep[self.tstep]
+                    # except KeyError:
+                    #     pass
+                    # Increment timestep
+                    self.tstep += self.tstep_length
                 # Determine the execution time
                 self.execution_time = time.time()-start_time
                 print 'Execution took {:0.3f} seconds.'.format(self.execution_time)
@@ -667,8 +603,5 @@ class Sim:
         if edge['blocked']:
             k = fd.kMax
         else:
-            if self.method is 'dict':
-                k = settings[self.scenario]['df']*edge['queue_length']/edge['area']
-            else:
-                k = settings[self.scenario]['df']*len(edge['queue'])/edge['area']
+            k = settings[self.scenario]['df']*edge['queue_length']/edge['area']
         return round(k,fd.dp)
