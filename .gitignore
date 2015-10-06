@@ -12,3 +12,6 @@ flood
 _tmp*
 *.var
 *.pickle
+*.sublime-project
+*.sublime-workspace
+*.xlsx

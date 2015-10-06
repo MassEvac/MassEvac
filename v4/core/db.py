@@ -778,8 +778,8 @@ class Highway:
         ''' Returns highway map figure with the exits nodes numbered.
         '''
         fig = self.fig_highway()
-        for label in destins:
-            x,y = self.node[d]
+        for label in self.destins:
+            x,y = self.G.node[label]
             plt.annotate(
                 label,
                 xy = (x, y), xytext = (20,20),
@@ -842,7 +842,8 @@ class Highway:
             edge_list[i]=[(u,v) for (u,v,d) in self.G.edges(data=True) if d['hiclass'] == i]
         # Generate the figure
         fig = plt.figure()
-        ax = plt.axes(xlim=(self.l, self.r), ylim=(self.b, self.t))
+
+        ax = plt.axes(xlim=(self.l, self.r), ylim=(self.b, self.t),aspect='equal')
         # Reversing so that the smaller roads are drawn first
         for i in reversed(edge_dict[theme].keys()):
             nx.draw_networkx_edges(self.G,pos=self.G.node,arrows=False,edgelist=edge_list[i],**edge_dict[theme][i])

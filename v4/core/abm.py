@@ -237,6 +237,7 @@ class Agent:
         self.initial_position = initial_position
         self.edge = initial_edge
         self.position = initial_position
+        self.in_buffer = False
     def __repr__(self):
         return '[A{} P{:0.2f} E{}]'.format(self.id,self.position,self.edge)
 
@@ -301,6 +302,8 @@ class Sim:
         self.p = db.Population(place,fresh=self.fresh)
         # If the number of agents is not defined, determine the population by multiplying the 2000 population by p_factor
         self.n = int(sum(self.p.pop) * p_factor)
+        # Use buffer
+        self.use_buffer = False
         
     def destin_hash(self):
         ''' Generate a hash for the list of destins.
@@ -401,8 +404,10 @@ class Sim:
         for u,v,d in self.h.G.edges_iter(data=True):
             # Determine number of agents that are allowed on a given edge
             self.h.G[u][v]['capacity'] = int(settings[self.scenario]['kCap']*d['area'])
-            # Reset the current agent count
+            # Initialise the queue length
             self.h.G[u][v]['queue_length'] = 0
+            # Initialise the buffer length
+            self.h.G[u][v]['buffer_length'] = 0
         # The following initial state of agents takes time to compute, save to cache
         # --------------------------------------------------------------------------
         fname = '{0}/initial_state'.format(self.agents_file())
@@ -484,7 +489,7 @@ class Sim:
                 velocity = fd.v_dict[self.density(d)]
                 self.h.G[u][v]['journey_time'] = d['distance']/velocity
     
-    def run(self,video=True,live_video=False,bitrate=4000,fps=20,rerun=False):
+    def run(self,video=True,live_video=False,bitrate=4000,fps=20,rerun=False,agent_progress_bar=False):
         ''' Function to animate the agents.
         '''
         success = 0
@@ -532,15 +537,17 @@ class Sim:
                                 # If this is the last edge
                                 if v == edge['nearest_destin']:
                                     # Decrement the number of agents left
-                                    self.agents_left = self.agents_left - 1
+                                    self.agents_left -= 1
                                     # Remove the agent from the queue
-                                    edge['queue_length'] = edge['queue_length'] - 1
-                                    if edge['queue_length'] < 0:
-                                        raise ValueError
+                                    edge['queue_length'] -= 1
+                                    if self.agent.in_buffer:
+                                        edge['buffer_length'] -= 1
+                                        self.agent.in_buffer = False
                                     self.agent.destin = v
                                     # print self.agent
                                     # Print the simulation time
-                                    print '\n Time: {:0.4f} Agents Left: {}'.format(self.agent.action_time, self.agents_left)
+                                    if agent_progress_bar:
+                                        print '\n Time: {:0.4f} Agents Left: {}'.format(self.agent.action_time, self.agents_left)
                                     self.add_agent = False
                                     # print 'break 1'
                                     break
@@ -549,25 +556,43 @@ class Sim:
                                     new_u = v
                                     new_v = self.h.route[edge['nearest_destin']][v]
                                     new_edge = self.h.G[new_u][new_v]
+                                    new_traversal_time = new_edge['distance']/fd.v_dict[self.density(new_edge)]
                                     # Only move the agent if there is capacity in the new edge
                                     if new_edge['capacity'] > new_edge['queue_length']:
                                         # Remove the agent from the old edge
-                                        edge['queue_length'] = edge['queue_length'] - 1
+                                        edge['queue_length'] -= 1
+                                        if self.agent.in_buffer:
+                                            edge['buffer_length'] -= 1
+                                            self.agent.in_buffer = False
                                         # Add agent to the new edge
-                                        new_edge['queue_length'] = new_edge['queue_length'] + 1
+                                        new_edge['queue_length'] += 1
                                         if edge['queue_length'] < 0:
                                             raise ValueError
                                         # Determine the next time to take action depending on:
                                         #   - Link length
                                         #   - Link density
                                         # print self.density(new_edge), new_u,new_v,' density'
-                                        self.agent.action_time += new_edge['distance']/fd.v_dict[self.density(new_edge)]
+                                        self.agent.action_time += new_traversal_time
                                         # Assign new edge to the agent
                                         self.agent.edge = (new_u,new_v)
                                     else:
                                         # If there is no capacity, wait till the next time step
-                                        self.agent.action_time += self.tstep_length
-                                        # print new_edge['capacity'], new_edge['queue_length']
+                                        if self.agent.in_buffer is False:
+                                            self.agent.in_buffer = True
+                                            edge['buffer_length'] += 1
+                                        # Use self.use_buffer to specify whether to use additional buffer time depending
+                                        # on the buffer ratio and length of time required to traverse the next edge. For example:
+                                        # - If buffer_length/queue_length in the next edge ---> 0, buffer_time ---> 0
+                                        # - If buffer_length/queue_length in the next edge ---> 1, buffer_time ---> random(0,new_traversal_time)
+                                        # The logic is: if all agents in the next edge are waiting in the buffer,
+                                        #   chance that any of the agents in this edge can move until the ones in the next
+                                        #   edge have cleared is pretty low. So, the minimum time required to traverse the
+                                        #   next edge depends on the density of that edge and is given by new_traversal_time.
+                                        # At the moment, using the buffer seems to underestimate the time obtained without it.
+                                        # - I need to think of a way to implement buffer that produces a similar result to unbuffered time.
+                                        # - As such, unbuffered is a more conservative estimate.
+                                        # - And as such, only proceed with using buffer only if the need for performance outweighs accuracy.
+                                        self.agent.action_time += self.tstep_length + self.use_buffer*random.random()*new_traversal_time*new_edge['buffer_length']/new_edge['queue_length']
                                         break
                             if self.add_agent:
                                 try:
