@@ -17,15 +17,15 @@ from shapely.geometry import LineString,Point,mapping
 ''' Load the database configuration.
 '''
 try:
-    with open('.dbconfig','r') as f:
-        config=json.load(f)
+    with open('.dbconfig','r') as file:
+        config=json.load(file)
 except IOError:
     print   """ There is no .dbconfig file.
 
                 Modify and paste the following into the working directory to create the file.
 
-                with open('.dbconfig','w') as f:
-                    json.dump({'dbname':'osm_gb','host':'localhost','user':'username','password':'password'},f,indent=True)
+                with open('.dbconfig','w') as file:
+                    json.dump({'dbname':'osm_gb','host':'localhost','user':'username','password':'password'},file,indent=True)
             """
 
 def folder(place):
@@ -81,15 +81,18 @@ class Query:
                 self.cur.execute(self.SQL)
                 print self.SQL
             except Exception, e:
-                print e.pgerror
+                print e
         else:
             try:
                 self.cur.execute(self.SQL,self.data)
                 print self.cur.mogrify(self.SQL,self.data)
             except Exception, e:
-                print e.pgerror
+                print e
         
-        self.result = self.cur.fetchall()
+        try:
+            self.result = self.cur.fetchall()
+        except ProgrammingError:
+            pass
     
     def __len__(self):
         return len(self.result)
@@ -129,38 +132,23 @@ class Population:
         if os.path.isfile(fname) and not self.fresh == True:
             print '{0}: Loading {1}'.format(self.place,fname)
             with open(fname, 'r') as file:
-                self.lon,self.lat,self.pop=pickle.load(file)
+                self.x,self.y,self.lon,self.lat,self.pop=pickle.load(file)
         else:
             print '{0}: Processing {1}'.format(self.place,fname)
-            SQL = """SELECT ST_RasterToWorldCoordX(p.rast, x) AS wx, ST_RasterToWorldCoordY(p.rast,y) AS wy, ST_Value(p.rast, x, y) as v
-                    FROM population_grumpv1 AS p,
-                    (SELECT ST_GeomFromText(%s,4326) AS way) AS f
-                    CROSS JOIN generate_series(1, 100) As x
-                    CROSS JOIN generate_series(1, 100) As y
-                    WHERE ST_Intersects(p.rast,f.way);"""
-            
-            data = (self.boundary.wkt,)
-            
+            SQL = """SELECT x, y, val, geom FROM
+                        (SELECT (ST_PixelAsCentroids(ST_Clip(q.raster,q.clipper))).* FROM
+                            (SELECT p.rast AS raster, b.way as clipper
+                                FROM population_grumpv1 AS p,
+                                    (SELECT ST_GeomFromText(%s,4326) AS way) AS b
+                                WHERE ST_Intersects(p.rast,b.way)) AS q) AS foo;"""
+            data = (self.boundary.wkt,)                    
             result = Query(SQL,data).result
-            
-            n = len(result)
-            
-            lon = [None]*n
-            lat = [None]*n
-            pop = [None]*n
-            
-            for i,r in enumerate(result):
-                lon[i] = r[0]
-                lat[i] = r[1]
-                pop[i] = r[2]
-            
-            self.lon = np.array(lon)
-            self.lat = np.array(lat)
-            self.pop = np.array(pop)
-            
+            self.x,self.y,self.pop,geom = zip(*result)
+            points=[shapely.wkb.loads(i,hex=True) for i in geom]
+            self.lon,self.lat = zip(*[(i.x, i.y) for i in points])
             print '{0}: Writing {1}'.format(self.place,fname)
             with open(fname, 'w') as file:
-                pickle.dump([self.lon,self.lat,self.pop], file)
+                pickle.dump([self.x,self.y,self.lon,self.lat,self.pop], file)
     
     def __repr__(self):
         return self.place + ' with ' + str(len(self.pop)) + ' data points.'
@@ -169,7 +157,7 @@ class Population:
         ''' Draw figure of raw poulation data from the database.
         '''
         axs = plt.axes(xlim=(min(self.lon),max(self.lon)), ylim=(min(self.lat), max(self.lat)))
-        plt.scatter(self.lon,self.lat,c=self.pop)
+        plt.scatter(self.lon,self.lat,self.pop,c=self.pop)
         plt.colorbar()
         return fig
     
@@ -259,9 +247,9 @@ class Highway:
             ----------    
                 self.G: networkx DiGraph
                     Simplified networkx highway graph.
-                self.edges: list of tuples
+                self.G.edges: list of tuples
                     List of tuples containing ri, ci, di,etc.
-                self.nodes: list of tuples
+                self.G.nodes: list of tuples
                     List of tuples of (longitude, latitude)
                 self.boundary:
                     Boundary object 
@@ -276,16 +264,20 @@ class Highway:
         self.fresh = fresh
         self.mapname = folder(self.place)+'/highway.{0}.png'
         # Process highways if edge or node cache is not available or the 'fresh' boolean is True.
-        if self.load_edges() and self.load_nodes() and self.fresh == False:
+        edges = self.load_edges()
+        nodes = self.load_nodes()
+        if edges and nodes and self.fresh == False:
             # Create simplified networkx graph
-            self.G=nx.DiGraph(self.edges)
+            self.G=nx.DiGraph(edges)
+            for n in self.G.nodes_iter():
+                self.G.node[n] = nodes[n]
         else:
             print '{0}: Processing highway.'.format(place)
             SQL = """SELECT r.way, r.osm_id, r.highway, r.oneway, r.width, r.tags->'lanes' FROM
                     planet_osm_line AS r,
                     (SELECT ST_GeomFromText(%s,4326) AS way) AS s
                     WHERE r.highway <> %s AND ST_Intersects(r.way, s.way);"""
-            data = (self.boundary.wkt,)
+            data = (self.boundary.wkt,'',)
             self.result = Query(SQL,data).result
             # All nodes that appear on the edges
             all_nodes = []
@@ -295,16 +287,16 @@ class Highway:
                 for c in s.coords[:]:
                     all_nodes.append(c)
             # Unique nodes that appear on the edges after the duplicate nodes are removed
-            self.nodes = list(set(all_nodes))
-            # Call function to create a dictionary to enable node index lookup called self.node_lookup
-            self.init_node_lookup()
+            nodes = list(set(all_nodes))
+            # Reverse the key,value lookup
+            node_lookup = dict(zip(nodes,range(len(nodes))))
             # Count the number of times that a node is used
             node_count = {}
-            for i,j in all_nodes:
+            for coord in all_nodes:
                 try:
-                    node_count[self.node_lookup[i][j]] = node_count[self.node_lookup[i][j]] + 1
+                    node_count[node_lookup[coord]] = node_count[node_lookup[coord]] + 1
                 except KeyError:
-                    node_count[self.node_lookup[i][j]] = 1
+                    node_count[node_lookup[coord]] = 1
             # Identify the nodes that are part of an intersection if they appear more than once
             junctions = []
             for n in node_count:
@@ -318,14 +310,14 @@ class Highway:
                 # Convert to shapely format
                 s=shapely.wkb.loads(way, hex=True)
                 # Create list of node indices for a path in the row
-                node_indices = [self.node_lookup[i][j] for i,j in s.coords]
+                node_indices = [node_lookup[coord] for coord in s.coords]
                 # Begin the FULL graph construction
                 for this_node, that_node in zip(node_indices[:-1],node_indices[1:]):
                     # Create list of edges (node pairs) for the row
                     foreward = [(this_node, that_node)]
                     backward = [(that_node, this_node)]
                     # Call funtion to work out the distance for this edge using haversine formula
-                    distance = self.haversine_distance(self.nodes[this_node],self.nodes[that_node])
+                    distance = self.haversine_distance(nodes[this_node],nodes[that_node])
                     # Call funtion to determine the edges to add using the OSM oneway protocol
                     edges = self.oneway_edges(oneway,foreward,backward)
                     # Add edges to the FULL graph
@@ -336,7 +328,7 @@ class Highway:
                 distance = 0
                 for that_node in node_indices[1:]:
                     # Call function to determine distance of the current edge to add to the sum of edges we are removing
-                    distance = distance + self.haversine_distance(self.nodes[last_node],self.nodes[that_node])
+                    distance = distance + self.haversine_distance(nodes[last_node],nodes[that_node])
                     last_node = that_node
                     # If the that_node is a node at an intersection then complete the edge and create a new one
                     if that_node in junctions or that_node == node_indices[-1]:
@@ -356,18 +348,40 @@ class Highway:
             # We save the edge list as a 'list' to preserve
             # the order as some elements rely on it.
             # Saving the 'DiGraph' or a 'dict' messes up the order.
+            for n in self.F.nodes_iter():
+                self.F.node[n] = nodes[n]
+            for n in self.G.nodes_iter():
+                self.G.node[n] = nodes[n]
+            self.init_hiclass()
+            # 1 agent per metre squared is assumed to be the
+            #  minimum area so that agents do not get stuck.
+            # I am assuming that it only affects fraction of edges!
+            # 1 agent / 1 agent per metre square = 1 metre square
+            EA_min = 1.0 # metre squared        
+            for u,v in self.G.edges():
+                self.G[u][v]['hiclass']=self.hiclass[self.G[u][v]['highway']]
+                self.G[u][v]['assumed_width']=self.assumed_width[self.G[u][v]['hiclass']]
+                area = self.G[u][v]['distance']*self.G[u][v]['assumed_width']
+                if area < EA_min:
+                    area = EA_min
+                self.G[u][v]['area']= area
+            self.init_pop_dist()
             self.cache_edges()
             self.cache_nodes()
-        self.lon,self.lat=np.array(zip(*self.nodes))
-        self.l,self.r=min(self.lon),max(self.lon)
-        self.b,self.t=min(self.lat),max(self.lat)
-        self.nedges = self.G.number_of_edges()
+        lon,lat=np.array(zip(*[v for u,v in self.G.nodes(data=True)]))
+        self.l,self.r=min(lon),max(lon)
+        self.b,self.t=min(lat),max(lat)
+
+    def init_hiclass(self):
+        ''' This is how we classify different highway tags into different categories.'''        
         # Assumptions
         # -----------
-        # Standard with per lane
-        self.wlane = 2.5
+        # Standard with per lane in metres
+        self.assumed_width_per_lane = 2.5
+        # Assumed number of lanes per hiclass
+        self.assumed_lanes = np.array([3,2,2,1.5,1,1,0.5])
         # Widths of the 7 types of highways
-        self.width = np.array([3,2,2,1.5,1,1,0.5])*self.wlane
+        self.assumed_width = self.assumed_lanes*self.assumed_width_per_lane
         # The highway class processing takes some time, to generate such a short list.
         # Big time savings to be had from saving it to a file.
         # In the future, it may be worth having a giant list for all cities!
@@ -419,27 +433,41 @@ class Highway:
                     print '{0}: Highway class 6 will be assumed for: {1}'.format(self.place,highway)
             print '{0}: Writing {1}'.format(self.place,fname)
             with open(fname, 'w') as file:
-                pickle.dump(self.hiclass, file)
-        self.R,self.C,self.D,self.W = zip(*[(ri,ci,di['distance'],self.width[self.hiclass[di['highway']]]) for ri,ci,di in self.edges])
+                pickle.dump(self.hiclass, file)        
     
+    def cache_edges(self):
+        ''' Cache edges to a file.'''
+        fname = '{0}/highway.edges.gz'.format(folder(self.place))
+        print '{0}: Writing {1}'.format(self.place,fname)
+        with gzip.open(fname, 'w') as file:
+            pickle.dump(self.G.edges(data=True), file)
+
+    def cache_nodes(self):
+        fname = '{0}/highway.nodes.gz'.format(folder(self.place))
+        print '{0}: Writing {1}'.format(self.place,fname)
+        with gzip.open(fname, 'w') as file:
+            pickle.dump(self.G.nodes(data=True), file)
+
     def load_edges(self):
         ''' Load edges from the cache file.'''
         fname = '{0}/highway.edges.gz'.format(folder(self.place))
         if os.path.isfile(fname):
             print '{0}: Loading {1}'.format(self.place,fname)
             with gzip.open(fname, 'r') as file:
-                self.edges = pickle.load(file)
-            return True
+                edges = pickle.load(file)
+            return edges
         else:
             return False
 
-    def cache_edges(self):
-        ''' Cache edges to a file.'''
-        fname = '{0}/highway.edges.gz'.format(folder(self.place))
-        self.edges = self.G.edges(data=True)
-        print '{0}: Writing {1}'.format(self.place,fname)
-        with gzip.open(fname, 'w') as file:
-            pickle.dump(self.edges, file)
+    def load_nodes(self):
+        fname = '{0}/highway.nodes.gz'.format(folder(self.place))
+        if os.path.isfile(fname):
+            print '{0}: Loading {1}'.format(self.place,fname)
+            with gzip.open(fname, 'r') as file:
+                nodes = dict(pickle.load(file))
+            return nodes
+        else:
+            return False
 
     def nearest_destin_from_edge(self,edge_index):
         ''' Determines the nearest destin index and the distance from input edge index.
@@ -506,10 +534,8 @@ class Highway:
             # Determine nearest catchment areas            
             p["nearest_destin"],p["distance_destin"] = self.nearest_destin_from_edge(i)
             # Determine highway class and corresponding assumed width          
-            p["hiclass"] = self.hiclass[d['highway']]
-            p["awidth"] = self.width[p["hiclass"]]
             p.update(d)    
-            l = LineString([self.nodes[u],self.nodes[v]])
+            l = LineString([self.G.node[u],self.G.node[v]])
             feature = {
                 "type": "Feature",
                 "properties": p,
@@ -520,8 +546,8 @@ class Highway:
             "type": "FeatureCollection",
             "features": features
         }
-        with open (fname,'w') as f:
-            json.dump(out,f,indent=True)     
+        with open (fname,'w') as file:
+            json.dump(out,file,indent=True)     
 
     def geojson_nodes(self, fname, properties):
         ''' Produces a geojson file with feature tag.
@@ -543,37 +569,18 @@ class Highway:
             feature = {
                 "type": "Feature",
                 "properties": p,
-                "geometry": mapping(Point(self.nodes[n]))
+                "geometry": mapping(Point(self.G.node[n]))
             }
             features.append(feature)
         out = {
             "type": "FeatureCollection",
             "features": features
         }
-        with open (fname,'w') as f:
-            json.dump(out,f,indent=True)   
-
-    def load_nodes(self):
-        fname = '{0}/highway.nodes.gz'.format(folder(self.place))
-        if os.path.isfile(fname):
-            print '{0}: Loading {1}'.format(self.place,fname)
-            with gzip.open(fname, 'r') as file:
-                self.nodes = pickle.load(file)
-            return True
-        else:
-            return False
-
-    def cache_nodes(self):
-        fname = '{0}/highway.nodes.gz'.format(folder(self.place))
-        print '{0}: Writing {1}'.format(self.place,fname)
-        with gzip.open(fname, 'w') as file:
-            pickle.dump(self.nodes, file)
+        with open (fname,'w') as file:
+            json.dump(out,file,indent=True)   
 
     def __repr__(self):
         return self.place + ' highway.'
-    
-    def edge_width(self,edge):
-        return self.W[edge]
     
     def init_destins(self):
         ''' Returns a list of destin nodes.
@@ -596,7 +603,7 @@ class Highway:
                      AND l.highway IN ('motorway','motorway_link','trunk','trunk_link','primary','primary_link')"""
             data = (self.boundary.wkt,)
             r = Query(SQL,data).result
-            self.init_node_lookup()
+            node_lookup = dict(zip(self.G.node.values(),self.G.node.keys()))
             self.destins = []
             # Determine the centroidal node of the graph from which to trace all our routes from
             # (Assuming that all destinations are accessible from the centroid)
@@ -618,7 +625,7 @@ class Highway:
                 # And if the last node of a path is outside the place boundary
                 for d in destin_coord[oneway]:
                     if not self.boundary.intersects(shapely.geometry.Point(d)):
-                        destin_node = self.node_lookup[d[0]][d[1]]
+                        destin_node = node_lookup[d]
                         # If the destin node can be accessed from the centroidal node, accept, otherwise reject
                         try:
                             route_len_from_centroid[destin_node]
@@ -628,23 +635,7 @@ class Highway:
             print '{0}: Writing {1}'.format(self.place,fname)
             with open(fname, 'w') as file:
                 pickle.dump(self.destins, file)
-        # Create a dictionary map of destination node number to a numeric value
-        self.destin_dict = dict([(d,i) for i,d in enumerate(self.destins)])
-        # List of numeric destins
-        self.destin_range = range(len(self.destins))
-        # Dictionary of destin edges
-        self.destin_edges = {}
-        # List of destin width
-        self.destin_width_dict = {}
-        # List of destin width
-        self.destin_width = []
-        for destin in self.destins:
-            self.destin_edges[destin]= [i for i,n in enumerate(self.C) if n == destin]
-            w = sum([self.W[e] for e in self.destin_edges[destin]])
-            self.destin_width_dict[destin] = w
-            self.destin_width.append(w)
-        
-    
+
     def init_route(self):
         ''' Initialise route and route length dictionaries
             
@@ -660,7 +651,10 @@ class Highway:
         '''
         self.route = {}
         self.route_length = {}
-        self.destin_edges = {}
+        try:
+            self.destins
+        except AttributeError:
+            self.init_destins()
         # We are reversing so that we can determine the shortest path to a single sink rather than from a single source
         GT = self.G.reverse(copy=True)
         self.route_folder = '{0}/highway.route'.format(folder(self.place))
@@ -689,8 +683,21 @@ class Highway:
                 with open(fname, 'w') as file:
                     pickle.dump([self.route[destin],self.route_length[destin]], file)
         # Determine the list of all destination edges
-        self.all_destin_edges = [x for v in self.destin_edges.values() for x in v]
-        return 'Path to destinations initialised.'
+        for u,v in self.G.edges_iter():
+            # Iterate over all destins and find the maximum distance between node u and v
+            destin_distance = {}
+            for x in self.destins:
+                try:
+                    destin_distance[x] = max(self.route_length[x][u],self.route_length[x][v])
+                except KeyError:
+                    pass
+            # Assign the nearest destin to the edge
+            try:                    
+                self.G[u][v]['nearest_destin'] = min(destin_distance,key=destin_distance.__getitem__)
+                self.G[u][v]['destin_distance'] = destin_distance
+            except ValueError:
+                pass
+        return 'Route to destinations initialised.'
     
     def nearest_node(self,x,y,nodelist=None):
         ''' Function to get the node number nearest to a prescribed node.
@@ -708,136 +715,77 @@ class Highway:
                 nearest: int
                     Node index integer nearest to input latitude and longitude.
         '''
+        all_nodes,coords=zip(*[(n,c) for n,c in self.G.nodes(data=True)])
         if nodelist==None:
-            nodelist = range(len(self.nodes))
-        lon = self.lon[nodelist]
-        lat = self.lat[nodelist]
+            nodelist = all_nodes    
+        lon,lat = np.array(zip(*coords))
         # Function to get the node number nearest to a prescribed lon and lat
         distance=np.sqrt(np.square(lon-x)+np.square(lat-y))
         nearest=min(range(len(distance)), key=distance.__getitem__)
         return nodelist[nearest]
     
-    def init_EM(self):
-        fname = '{0}/highway.EM'.format(folder(self.place))
-        if os.path.isfile(fname) and not self.fresh == True:
-            print '{0}: Loading {1}'.format(self.place,fname)
-            with open(fname, 'r') as file:
-                self.EM = pickle.load(file)
-        else:
-            print '{0}: Processing {1}'.format(self.place,fname)
-            # Initialise matrix with edge number
-            self.EM = {}
-            for i in range(self.nedges):
-                try:
-                    self.EM[self.R[i]].update({self.C[i]:i})
-                except KeyError:
-                    self.EM[self.R[i]] = {self.C[i]:i}
-            # Dump the results to a file
-            print '{0}: Writing {1}'.format(self.place,fname)
-            with open(fname, 'w') as file:
-                pickle.dump(self.EM, file)
-    
-    def init_EA(self):
-        """ Function to initialise area of edges."""
-        # 1 agent per metre squared is assumed to be the
-        #  minimum area so that agents do not get stuck.
-        # I am assuming that it only affects fraction of edges!
-        # 1 agent / 1 agent per metre square = 1 metre square
-        EA_min = 1.0 # metre squared
-        fname = '{0}/highway.EA.min={1}'.format(folder(self.place),EA_min)
-        if os.path.isfile(fname) and not self.fresh == True:
-            print '{0}: Loading {1}'.format(self.place,fname)
-            with open(fname, 'r') as file:
-                self.EA = pickle.load(file)
-        else:
-            print '{0}: Processing {1}'.format(self.place,fname)
-            # Initialise area of edges
-            self.EA = [None] * self.nedges
-            # Assign the widths to the edges
-            for i in range(self.nedges):
-                self.EA[i] = self.D[i]*self.W[i]
-                # If the edge area is less than the minimum area (enough to handle one agent)
-                if self.EA[i] < EA_min:
-                    print '{0}: Edge number {0} had to be assigned EA_min.'.format(self.place,i)
-                    self.EA[i] = EA_min
-            # Dump the results to a file
-            print '{0}: Writing {1}'.format(self.place,fname)
-            with open(fname, 'w') as file:
-                pickle.dump(self.EA, file)
-    
-    def init_pop(self):
+    def init_pop_dist(self):
         ''' Function to initialise population.
         '''
-        fname = '{0}/highway.pop'.format(folder(self.place))
-        if os.path.isfile(fname) and not self.fresh == True:
-            print '{0}: Loading {1}'.format(self.place,fname)
-            with open(fname, 'r') as file:
-                self.pop_lon, self.pop_lat, self.pop, self.total_pop, self.pop_dist = pickle.load(file)
-        else:
-            print '{0}: Processing {1}'.format(self.place,fname)
-            # Get population distribution from the database
-            pdb = Population(self.place,fresh=self.fresh)
-            # List to record the total length of links per node on population grid
-            total_length = np.zeros(len(pdb.pop))
-            # List to record which node on population grid the link is nearest to
-            which_pop_node = [None]*self.nedges
-            # Determine the nearest node on population grid for every link
-            for i in range(self.nedges):
-                ri = self.R[i]
-                ci = self.C[i]
-                di = self.D[i]
-                # Calculate the midpoint
-                mx = (self.lon[ri] + self.lon[ci]) / 2
-                my = (self.lat[ri] + self.lat[ci]) / 2
-                # Determine the nearest population node
-                pi = pdb.nearest_node(mx,my)
-                which_pop_node[i] = pi
-                # Sum the total length of the road segment
-                total_length[pi] += di
-            # Determine which population nodes have been referenced
-            ref_nodes = np.unique(which_pop_node)
-            # Prepare the output
-            self.pop_lon = pdb.lon[ref_nodes]
-            self.pop_lat = pdb.lat[ref_nodes]
-            self.pop = pdb.pop[ref_nodes]
-            self.total_pop = sum(self.pop)
-            # List to record the percentage of total population per edge
-            self.pop_dist = np.zeros(self.nedges)
-            # Now distribute the population proportional to the length of link
-            for i in range(self.nedges):
-                di = self.D[i]
-                pi = which_pop_node[i]
-                self.pop_dist[i] = pdb.pop[pi]/self.total_pop * di/total_length[pi]
-            # Dump the results to a file
-            print '{0}: Writing {1}'.format(self.place,fname)
-            with open(fname, 'w') as file:
-                pickle.dump([self.pop_lon, self.pop_lat, self.pop, self.total_pop, self.pop_dist], file)
+        print '{0}: Processing population distribution.'.format(self.place)
+        # Get population distribution from the database
+        pdb = Population(self.place,fresh=self.fresh)
+        # List to record the total length of links per node on population grid
+        total_area = np.zeros(len(pdb.pop))
+        # List to record which node on population grid the link is nearest to
+        which_pop_node = {}
+        count = 0
+        # Determine the nearest node on population grid for every link
+        for u,v,d in self.G.edges_iter(data=True):
+            midpoint = sum(np.array([self.G.node[u],self.G.node[v]]))/2
+            # Determine the nearest population node
+            pi = pdb.nearest_node(*midpoint)
+            which_pop_node[(u,v)] = pi
+            # Sum the total length of the road segment
+            total_area[pi] += d['area']
+            count = count + 1
+            if count%100 == 0:
+                print count, ' edges processed...\r',
+        # Prepare the output
+        pop_indices = set(which_pop_node.values())
+        # This is not the total population but rather the 
+        total_accounted_pop = sum(pdb.pop[k] for k in pop_indices)
+        print 'Total accounted population vs total population according to GRUMPv1 = ', total_accounted_pop, sum(pdb.pop)
+        # Now distribute the population proportional to the length of link
+        for u,v,d in self.G.edges_iter(data=True):
+            pi = which_pop_node[(u,v)]
+            self.G[u][v]['pop_dist'] = pdb.pop[pi]/total_accounted_pop * d['area']/total_area[pi]
+        sanity_check = 0
+        for u,v,d in self.G.edges_iter(data=True):
+            sanity_check+=d['pop_dist']
+        print 'Sanity check value should be close to 1 = ', sanity_check
+        print 'Run self.fig_pop_dist() to view the population distribution.'
     
-    def fig_pop(self):
+    def fig_pop_dist(self):
         ''' Generate the figure for processed population.
         '''
         try:
             self.pop
         except AttributeError:
-            self.init_pop()
-        fig = self.fig_highway()
-        plt.scatter(self.pop_lon,self.pop_lat,c=self.pop)
-        plt.colorbar()
+            self.init_pop_dist()
+        edgelist,edgewidth = zip(*[((u,v),d['pop_dist'])for u,v,d in self.G.edges(data=True)])
+        thickest_line_width = 2
+        edgewidth=np.array(edgewidth)/max(edgewidth)*thickest_line_width
+        nx.draw_networkx_edges(self.G,pos=self.G.node,arrows=False,edgelist=edgelist,edge_color=edgewidth,width=edgewidth,alpha=1.0)
         return fig
     
     def fig_destins(self):
         ''' Returns highway map figure with the exits nodes numbered.
         '''
         fig = self.fig_highway()
-        plt.scatter(self.lon[self.destins],self.lat[self.destins])
-        for label, x, y in zip(self.destins, self.lon[self.destins], self.lat[self.destins]):
+        for label in destins:
+            x,y = self.node[d]
             plt.annotate(
                 label,
                 xy = (x, y), xytext = (20,20),
                 textcoords = 'offset points', ha = 'left', va = 'bottom',
                 bbox = dict(boxstyle = 'round,pad=0.5', fc = 'yellow', alpha = 0.5),
                 arrowprops = dict(arrowstyle = '->', connectionstyle = 'arc3,rad=0'))
-        
         return fig
     
     def img_highway(self,theme='default'):
@@ -869,7 +817,6 @@ class Highway:
         '''
         fname = self.mapname.format(theme)
         print '{0}: Processing {1}'.format(self.place,fname)
-        G = self.G
         edge_dict = {'default':{
                                  0:{'alpha':1.00,'edge_color':'LightSkyBlue'},
                                  1:{'alpha':1.00,'edge_color':'DarkOliveGreen'},
@@ -892,22 +839,24 @@ class Highway:
         # Classify roads into big and small roads for the purpose of drawing the map
         edge_list = {}
         for i in range(len(edge_dict[theme])):
-            edge_list[i]=[(u,v) for (u,v,d) in self.edges if self.hiclass[d['highway']] == i]
+            edge_list[i]=[(u,v) for (u,v,d) in self.G.edges(data=True) if d['hiclass'] == i]
         # Generate the figure
         fig = plt.figure()
         ax = plt.axes(xlim=(self.l, self.r), ylim=(self.b, self.t))
         # Reversing so that the smaller roads are drawn first
         for i in reversed(edge_dict[theme].keys()):
-            nx.draw_networkx_edges(G,pos=self.nodes,arrows=False,edgelist=edge_list[i],**edge_dict[theme][i])
+            nx.draw_networkx_edges(self.G,pos=self.G.node,arrows=False,edgelist=edge_list[i],**edge_dict[theme][i])
         # Draw the boundary of the place
         x,y=self.boundary.exterior.xy
         plt.plot(x,y,alpha=0.5)
         try:
             self.destins
         except AttributeError:
-            self.init_destins()            
+            self.init_destins()
         # Mark the destination nodes if they are available
-        plt.scatter(self.lon[self.destins],self.lat[self.destins],s=200,c='g',alpha=0.5,marker='o')
+        for d in self.destins:
+            x,y = self.G.node[d]
+            plt.scatter(x,y,s=200,c='g',alpha=0.5,marker='o')
         print '{0}: Writing {1}'.format(self.place,fname)
         extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
         plt.savefig(fname, bbox_inches=extent, dpi=300)
@@ -964,26 +913,6 @@ class Highway:
                 -1: backward}
         return edges[self.oneway(oneway_tag)]
     
-    def init_node_lookup(self):
-        ''' Create dict of nodes for quick lookup of node index.
-        
-            Properties
-            ----------
-                self.node_lookup: dict
-                    A dictionary of longiture and latitude.
-                    Do self.node_lookup[lon][lat] to get the node number.
-            Note
-            ----
-                This is a much faster way of looking up nodes compared to using
-                a tuple list index. (At least a 100x faster!!!)
-        '''        
-        self.node_lookup = {}
-        for i,node in enumerate(self.nodes):
-            try:
-                self.node_lookup[node[0]].update({node[1]:i})
-            except KeyError:
-                self.node_lookup[node[0]] = {node[1]:i}
-    
     def count_features(self,feature):
         ''' Count and return the sorted number of edges with a given feature.
         
@@ -998,8 +927,8 @@ class Highway:
         '''
         feature_list = []
         feature_count = []
-        for i,j,d in self.edges:
-            feature_list.append(d[feature])
+        for u,v in self.G.edges():
+            feature_list.append(self.G[u][v][feature])
         for f in set(feature_list):
             feature_count.extend([(f,feature_list.count(f))])
         return sorted(feature_count,key=lambda x: x[1])
@@ -1021,18 +950,17 @@ class Highway:
     def where_is_node(self,node):
         """Shows the location of the node and returns the edges it is connected to."""
         fig=self.fig_highway()
-        plt.scatter(self.lon[node],self.lat[node],s=500,alpha=0.25,c='blue')
-        plt.scatter(self.lon[node],self.lat[node],s=5,alpha=0.5,c='red')
+        x,y = self.G.node[node]
+        plt.scatter(x,y,s=500,alpha=0.25,c='blue')
+        plt.scatter(x,y,s=5,alpha=0.5,c='red')
     
-    def where_is_edge(self,edge):
+    def where_is_edge(self,u,v):
         """Shows the location of the edge and returns the edges it is connected to."""
-        ri = self.R[edge]
-        ci = self.C[edge]
-        mx = np.mean(np.array(self.lon)[[ri,ci]])
-        my = np.mean(np.array(self.lat)[[ri,ci]])
         fig=self.fig_highway()
-        plt.scatter(mx,my,s=500,alpha=0.25,c='blue')
-        nx.draw_networkx_edges(self.G,pos=self.nodes,arrows=False,edgelist=[(ri, ci)],edge_color='red',width=5,alpha=0.5)
+        xu,yu = self.G.node[u]
+        xv,yv = self.G.node[v]
+        plt.scatter([xu,xv],[yu,yv],s=500,alpha=0.25,c='blue')
+        nx.draw_networkx_edges(self.G,pos=self.G.node,arrows=False,edgelist=[(ri, ci)],edge_color='red',width=5,alpha=0.5)
 
 class Flood:
     def __init__(self,filename):
