@@ -10,18 +10,12 @@ import hashlib
 import six
 import time
 import logging
+import shutil
+import gzip
 import numpy as np
 import networkx as nx
 import scipy.stats as ss
 import matplotlib.pyplot as plt
-from sympy import *
-from matplotlib import mlab, animation
-from IPython.display import HTML
-from shapely.geometry import mapping, LineString
-from matplotlib.ticker import FormatStrFormatter
-from matplotlib.colors import LogNorm
-from numpy.lib.function_base import iterable
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # Best estimate of population multiplier
 # Assumes that population growth spread is uniform across the UK\
@@ -166,16 +160,6 @@ settings = {
         'df':1.0,
         'label':'With Interaction, No Intervention',
     },
-    'c0':{
-        'kCap':fd.kOpt,
-        'df':1.0,
-        'label':'With Intervention (Optimum Flow)',
-    },
-    'c1':{
-        'kCap':fd.kOpt+1,
-        'df':1.0,
-        'label':'With Intervention (Optimum Flow+1)'
-    },
     'ff':{
         'kCap':fd.kMax,
         'df':0.0,
@@ -268,8 +252,7 @@ class Sim:
         # Current scenario
         self.scenario = None
         # List of scenarios available
-        # self.scenarios = settings.keys()
-        self.scenarios = ['ia'] # For now, just consider interaction case
+        self.scenarios = settings.keys()
         # Folder to store the simulation and logging folder
         self.folder = 'abm/{0}/{1}'.format(self.sim,self.place)
         if not os.path.isdir(self.folder):
@@ -335,45 +318,27 @@ class Sim:
         self.scenario = scenario
         self.log_print('Current scenario set to ({0}).'.format(settings[self.scenario]['label']))
 
-    def agents_file(self):
-        ''' Return the name of the scenario specific agent file name.
-        '''
         # Count the number of blocked
-        blocked_count = 0
-        for u,v,d in self.h.G.edges_iter(data=True):
-            if d['blocked']:
-                blocked_count+= 1
-        # Generate blocked text if some of the roads are blocked
-        if blocked_count > 0:
-            blocked_text = '.b={0}'.format(blocked_count)
-            if self.random_successor:
-                blocked_text += '.rs'
-        else:
-            blocked_text = ''
-        fname = '{0}/n={1}.d={2}{3}'.format(self.folder,self.n,self.destin_hash(),blocked_text)
-        if not os.path.isdir(fname):
-            os.makedirs(fname)
-        return fname
+        self.agents_file = '{0}/n={1}.d={2}'.format(self.folder,self.n,self.destin_hash())
     
-    def scenario_file(self,scenario=None):
-        ''' Return the name of the scenario specific agent file name.
-        '''
-        if scenario == None:
-            scenario = self.scenario
-        fname = '{0}/{1}'.format(self.agents_file(),scenario)
-        if not os.path.isdir(fname):
-            os.makedirs(fname)
-        return fname
+        # Name the scenario file
+        self.scenario_file = '{0}/{1}'.format(self.agents_file,scenario)
+
+        # Name the events file
+        if not os.path.isdir(self.scenario_file):
+            os.makedirs(self.scenario_file)
+
+        self.events_file = '{0}/events'.format(self.scenario_file)
 
     def save_results(self):
         ''' Save the results to result files.
         '''
-        fname = '{0}/T'.format(self.scenario_file())
+        fname = '{0}/T'.format(self.scenario_file)
         self.log_print('Writing {0}'.format(fname))
         with open(fname, 'w') as file:
             pickle.dump(self.T, file)
         if self.tracked_agent:
-            fname = '{0}/tracked_agent'.format(self.scenario_file())
+            fname = '{0}/tracked_agent'.format(self.scenario_file)
             self.log_print('Writing {0}'.format(fname))
             with open(fname, 'w') as file:
                 pickle.dump(self.tracked_agent, file)
@@ -387,7 +352,7 @@ class Sim:
                     True  - if successful
                     False - if unsuccessful
         '''
-        fname = '{0}/T'.format(self.scenario_file())
+        fname = '{0}/T'.format(self.scenario_file)
         if os.path.isfile(fname):
             self.log_print('Loading {0}'.format(fname))
             with open(fname, 'r') as file:
@@ -410,7 +375,7 @@ class Sim:
             self.h.G[u][v]['buffer_length'] = 0
         # The following initial state of agents takes time to compute, save to cache
         # --------------------------------------------------------------------------
-        fname = '{0}/initial_state'.format(self.agents_file())
+        fname = '{0}/initial_state'.format(self.agents_file)
         if os.path.isfile(fname) and not self.fresh:
             self.log_print('Loading {0}'.format(fname))
             with open(fname, 'r') as file:
@@ -460,12 +425,15 @@ class Sim:
         # Construct the agents
         agent_id = 0
         self.agents = []
-        self.agents_per_tstep = {}        
+        self.agents_per_tstep = {}    
+        self.events = []    
         for u,v in initial_state:
             number_of_agents_in_this_edge = initial_state[(u,v)]
             for i in range(number_of_agents_in_this_edge):
                 # When a new agent is introduced, the position is proportional to the order of the agent
                 # Position is a value between 0 and 1 which shows how the agent is progressing through an edge
+                # position = 1 means agent is at u
+                # position = 0 means agent is at v
                 position = float(i+1)/number_of_agents_in_this_edge
                 agent = Agent(agent_id,initial_edge=(u,v),initial_position=position)
                 # Determine the node that the agent is travelling to
@@ -474,12 +442,17 @@ class Sim:
                 self.h.G[u][v]['queue_length'] += 1
                 density = self.density(self.h.G[u][v])
                 velocity = fd.v_dict[density]
+                agent.last_action_time = 0
                 agent.action_time = position*self.h.G[u][v]['distance']/velocity
                 try:
                     self.agents_per_tstep[int(agent.action_time)].append(agent)
                 except KeyError:
                     self.agents_per_tstep[int(agent.action_time)] = [agent]
                 self.agents.append(agent)
+                # What was the time when agent was at u?
+                # This is likely to go into negatives
+                time_at_u = (position-1)*self.h.G[u][v]['distance']/velocity
+                self.events.append([(u,round(time_at_u,2))])
                 agent_id += 1
         # If use of Journey Time is enabled, construct a journey time matrix.
         # It is currently not being used as it is not fully mature.
@@ -489,7 +462,7 @@ class Sim:
                 velocity = fd.v_dict[self.density(d)]
                 self.h.G[u][v]['journey_time'] = d['distance']/velocity
     
-    def run(self,video=True,live_video=False,bitrate=4000,fps=20,rerun=False,agent_progress_bar=False):
+    def run(self,rerun=False,agent_progress_bar=False):
         ''' Function to animate the agents.
         '''
         success = 0
@@ -497,9 +470,10 @@ class Sim:
         # This is within run_sim because they are only required for the simulation.
         self.h.init_route()
         # Iterate through scenarios
-        for scenario in ['ia']:
+        for scenario in self.scenarios:
             # Initiate the given scenario
             self.init_scenario(scenario)
+
             if self.load_results() and not rerun:
                 self.log_print('Scenario has already been simulated with these parameters!')
             else:
@@ -514,9 +488,15 @@ class Sim:
 
                 print '\n Time: {:0.4f} Agents Left: {}'.format(self.tstep, self.agents_left)
 
+                # If the events folder exists, remove and create a new one
+                if os.path.isdir(self.events_file):
+                    shutil.rmtree(self.events_file)
+                os.makedirs(self.events_file)
+
                 # Start the timer
                 start_time = time.time()
                 while self.agents_left:
+                    # Event log for this timestep
                     self.loop_this = True
                     try:
                         random.shuffle(self.agents_per_tstep[self.tstep])
@@ -544,7 +524,8 @@ class Sim:
                                         edge['buffer_length'] -= 1
                                         self.agent.in_buffer = False
                                     self.agent.destin = v
-                                    # print self.agent
+                                    # Log the time spent on last edge
+                                    self.events[self.agent.id].append((v,round(self.agent.action_time,2)))
                                     # Print the simulation time
                                     if agent_progress_bar:
                                         print '\n Time: {:0.4f} Agents Left: {}'.format(self.agent.action_time, self.agents_left)
@@ -565,10 +546,11 @@ class Sim:
                                             self.agent.in_buffer = False
                                         # Add agent to the new edge
                                         new_edge['queue_length'] += 1
+                                        # Log the time spent on last edge
+                                        self.events[self.agent.id].append((v,round(self.agent.action_time,2)))
                                         # Determine the next time to take action depending on:
                                         #   - Link length
                                         #   - Link density
-                                        # print self.density(new_edge), new_u,new_v,' density'
                                         self.agent.action_time += new_edge['distance']/fd.v_dict[self.density(new_edge)]
                                         # Assign new edge to the agent
                                         self.agent.edge = (new_u,new_v)
@@ -591,7 +573,7 @@ class Sim:
                                             # At the moment, using the buffer seems to underestimate the time obtained without it.
                                             # - I need to think of a way to implement buffer that produces a similar result to unbuffered time.
                                             # - As such, unbuffered is a more conservative estimate.
-                                            # - And as such, only proceed with using buffer only if the need for performance outweighs accuracy.                                            
+                                            # - And as such, only proceed with using buffer only if the need for performance outweighs accuracy.
                                             self.agent.action_time += random.random()*new_edge['distance']/fd.v_dict[self.density(new_edge)]*new_edge['buffer_length']/new_edge['capacity']
                                         break
                             if self.add_agent:
@@ -609,6 +591,16 @@ class Sim:
                 # Determine the execution time
                 self.execution_time = time.time()-start_time
                 print 'Execution took {:0.3f} seconds.'.format(self.execution_time)
+                # Log events
+
+                to_write = ''
+                for id,event in enumerate(self.events):
+                    for node,tstep in event:
+                        to_write += '{}:{} '.format(tstep,node)
+                    to_write += '\n'
+                with gzip.open('{}.txt.gz'.format(self.events_file),'wb') as file:
+                    file.write(to_write)
+
                 success += 1
         return success
 

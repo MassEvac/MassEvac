@@ -15,3 +15,5 @@ _tmp*
 *.sublime-project
 *.sublime-workspace
 *.xlsx
+*.csv
+v4/sample
