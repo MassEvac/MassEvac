@@ -5,7 +5,6 @@ analysis
 db
 logs
 qgis
-flood
 .ipynb_checkpoints
 *.pyc
 .dbconfig
@@ -17,3 +16,5 @@ _tmp*
 *.xlsx
 *.csv
 v4/sample
+*.gz
+*.zip
