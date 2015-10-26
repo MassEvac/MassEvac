@@ -16,6 +16,9 @@ import numpy as np
 import networkx as nx
 import scipy.stats as ss
 import matplotlib.pyplot as plt
+from matplotlib import animation
+from matplotlib.colors import LogNorm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # Best estimate of population multiplier
 # Assumes that population growth spread is uniform across the UK\
@@ -668,3 +671,119 @@ class Sim:
         else:
             k = settings[self.scenario]['df']*edge['queue_length']/edge['area']
         return round(k,fd.dp)
+
+
+class Viewer:
+    def __init__(self,sim,t0=0.0,tstep=0.5,denominator=50,video=True):
+        ''' Sim tracks viewer.
+        
+            Inputs
+            ------
+                sim: Sim object
+                    Sim object as defined by class Sim
+                t0: float
+                    Time at which to start animating the simulation
+                tstep: float
+                    Amount of timestep to lapse between frames
+                denominator: int
+                    Show 1 in number of agents indicated by the denominator
+                    eg. 1 = all agents, 10 = 1 in 10 agents
+        '''                
+        self.s = sim
+        try:
+            self.s.tracks
+        except AttributeError:
+            self.s.tracks_file(mode='load')
+
+
+        self.t0 = t0
+        self.tstep = tstep
+        self.denominator = denominator
+        self.sample_size = len(self.s.tracks)/self.denominator
+        self.sample_tracks = random.sample(self.s.tracks,self.sample_size)
+        if video:
+            self.video()
+
+    def video(self):
+        # Load figure background
+        self.s.h.fig_highway()
+        fig = plt.gcf()
+        ax = plt.gca()
+        # Set Axes limit
+        ax.set_xlim(self.s.h.l, self.s.h.r) 
+        ax.set_ylim(self.s.h.b, self.s.h.t) 
+        # Load colourmap
+        cm = plt.cm.get_cmap('Spectral')
+        # Initialise points
+        self.points = ax.scatter([0],[0],c=[0],marker='o',edgecolors='none',cmap=cm,alpha=0.5,clim=[0.1,fd.vFf],norm=LogNorm(vmin=0.1, vmax=fd.vFf))
+        # Initialise text
+        self.time_text = ax.text(0.02, 0.94, '', transform=ax.transAxes,alpha=0.5,size='large')
+        # Draw colorbar and label
+        divider = make_axes_locatable(plt.gca())
+        cax = divider.append_axes("right", "5%", pad="3%")
+        cb = fig.colorbar(points,cax=cax,ticks=[fd.v_dict[k]/fd.speedup for k in range(int(fd.kCf))], format='$%.2f$')
+        cb.set_label("Velocity $m/s$", rotation=90)
+
+        plt.ion()
+        plt.show()
+
+        ani = animation.FuncAnimation(fig, self.animate, frames=self.frames(),
+            interval=1000/25, blit=False, repeat=False, init_func=self.init_animation, save_count=100000)
+        self.video_file = '{}/1_in_{}.mp4'.format(self.s.scenario_file,self.denominator)
+        print 'Saving video to {}'.format(self.video_file)
+        ani.save(self.video_file, fps=10, bitrate=2000)
+
+    def init_animation(self):
+        # Required for the blit state
+        P,S = [],np.array([])
+        self.points.set_offsets(P)
+        self.points.set_array(S)
+        self.time_text.set_text('')
+        return self.points, self.time_text
+
+    def animate(self,t):
+        P,S = PS(t)
+        self.agents_left = len(S) * self.denominator
+        self.points.set_offsets(P)
+        self.points.set_array(S)
+        self.time_text.set_text('T:{0} A:{1}'.format(t,self.agents_left))
+        return self.points, self.time_text
+
+    def frames(self):
+        t = self.t0
+        self.agents_left = self.sample_size * self.denominator        
+        # Generate frames until simulation has ended
+        while self.agents_left > 0:
+            yield t
+            print t, self.agents_left        
+            t = t + self.tstep
+
+    def PS(self,t):
+        try:
+            P,S = zip(*np.vstack([(track.position(t),track.speed) for track in self.sample_tracks if track.position(t) is not False]))
+        except ValueError:
+            P,S = [],[]
+        P,S = np.array(P),np.array(S)
+        return P,S
+
+    def path(self,which='time'):
+        all_P = []
+        all_S = []
+        all_t = []
+        for t in self.frames():
+            P,S = self.PS(t)
+            self.agents_left = len(S)
+            if self.agents_left > 0:
+                all_P.append(P)
+                all_S.append(S)
+                all_t.append(np.array([t]*self.agents_left))
+        self.all_P = np.vstack(all_P)
+        self.all_S = np.hstack(all_S)
+        self.all_t = np.hstack(all_t)
+        if which == 'time':
+            colors = self.all_t
+        elif which == 'speed':
+            colors = self.all_S
+        plt.scatter(self.all_P[:,0],self.all_P[:,1],c=colors,marker='.',edgecolors='none',alpha=0.2)
+        plt.colorbar()
+        plt.show()
