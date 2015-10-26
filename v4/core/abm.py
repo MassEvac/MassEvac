@@ -225,26 +225,55 @@ class Agent:
     def __repr__(self):
         return '[A{} P{:0.2f} E{}]'.format(self.id,self.position,self.edge)
 
+class Track:
+    def __init__(self,events,G):
+        self.events = events[:]
+        self.cursor = 0
+        self.G = G
+        self.update()        
+
+    def update(self):
+        self.this_time, self.this_node = self.events[self.cursor]
+        self.that_time, self.that_node = self.events[self.cursor+1]
+        self.this_position = np.array(self.G.node[self.this_node])
+        self.that_position = np.array(self.G.node[self.that_node])
+        self.velocity = (self.that_position-self.this_position)/(self.that_time-self.this_time)
+        self.speed = self.G[self.this_node][self.that_node]['distance']/(self.that_time-self.this_time)/fd.speedup
+
+    def position(self,time):
+        while True:
+            # The most likely scenario is that cursor hasn't moved
+            if time >= self.this_time and time < self.that_time:
+                return self.this_position+self.velocity*(time-self.this_time)
+            # Cursor has moved up is the next likely scenario
+            if time >= self.that_time:
+                if self.cursor == len(self.events)-2:
+                    return False
+                else:
+                    self.cursor += 1
+            # Sometimes we might want to backtrack                    
+            elif time < self.this_time:
+                if self.cursor == 0 or time < 0:
+                    return False
+                else:
+                    self.cursor -= 1
+            # Since we only arrive here if the cursor has moved, update the position
+            self.update()
+
 class Sim:
     def __init__(self,sim,place,fresh=False):
         ''' Queries the population raster table on PostgreSQL database.
         
             Inputs
             ------
+                sim: string
+                    String that is a name of the folder where we save the simulation results
                 place: string or tuple (xmin, ymin, xmax, ymax)
                     Name of the polygon on OpenStreetMap being queried
                     Alternatively, input tuple with boundary box coordinates
                 fresh: boolean
                     False: (default) Read processed highway graph from cache file
                     True: Read and construct highway graph from the database (may take longer)
-            Properties
-            ----------
-                self.lon: NumPy array
-                    Array of longitudes
-                self.lat: NumPy array
-                    Array of latitudes
-                self.pop: NumPy array
-                    Array of population
         '''        
         self.sim = sim
         self.place = str(place)
@@ -593,16 +622,33 @@ class Sim:
                 print 'Execution took {:0.3f} seconds.'.format(self.execution_time)
                 # Log events
 
-                to_write = ''
-                for id,event in enumerate(self.events):
-                    for node,tstep in event:
-                        to_write += '{}:{} '.format(tstep,node)
-                    to_write += '\n'
-                with gzip.open('{}.txt.gz'.format(self.events_file),'wb') as file:
-                    file.write(to_write)
+                tracks_file(mode='cache')
 
                 success += 1
         return success
+
+    def tracks_file(self,mode):
+        ''' Read cache events or load tracks 
+        '''
+        fname = '{}.txt.gz'.format(self.events_file)
+        if mode == 'cache':
+            to_write = ''
+            for id,event in enumerate(self.events):
+                for node,tstep in event:
+                    to_write += '{}:{} '.format(tstep,node)
+                to_write += '\n'
+            with gzip.open(fname,'wb') as file:
+                file.write(to_write)
+        elif mode == 'load':
+            self.tracks = []
+            with gzip.open(fname,'rb') as file:
+                for line in file.readlines():
+                    this = []
+                    for pair in line.split(' '):
+                        if not pair == '\n':
+                            tstep,node = pair.split(':')
+                            this.append((float(tstep),int(node)))
+                    self.tracks.append(Track(this,self.h.G))
 
     def dist2exit(self,agent):
         ''' Function to calculate agent distance to exit. Input is the agent index.
