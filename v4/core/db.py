@@ -3,13 +3,13 @@ import psycopg2
 import os
 import pickle
 import math
-import gdal
 import gzip
 import shapely.wkb
 import json
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
+from osgeo import gdal
 from matplotlib import mlab
 from scipy.misc import imread
 from shapely.geometry import LineString,Point,mapping
@@ -231,7 +231,7 @@ class Boundary:
         return self.place + ' boundary.'
 
 class Highway:
-    def __init__(self,place,fresh=False):
+    def __init__(self,place,graph='lite',fresh=False):
         ''' Loads Highway object from OpenStreetMap PostgreSQL database.
         
             Inputs
@@ -239,6 +239,9 @@ class Highway:
                 place: string or tuple (xmin, ymin, xmax, ymax)
                     Name of the polygon on OpenStreetMap being queried
                     Alternatively, input tuple with boundary box coordinates
+                graph
+                    'full': self.G = Full graph
+                    'lite': self.G = Simplified graph
                 fresh: boolean
                     False: (default) Read processed highway graph from cache file
                     True: Read and construct highway graph from the database (may take longer)
@@ -252,26 +255,62 @@ class Highway:
                 self.G.nodes: list of tuples
                     List of tuples of (longitude, latitude)
                 self.boundary:
-                    Boundary object 
-                If fresh == True, also creates the following:                
-                    self.F: networkx DiGraph
-                        Full networkx highway graph.
-                    self.result: list of tuples
-                        List of tuples of (way,osm_id,highway,oneway,width,lanes).
+                    Boundary object
         '''
         self.place = str(place)
         self.boundary = Boundary(place).shape
         self.fresh = fresh
         self.mapname = folder(self.place)+'/highway.{0}.png'
+        self.graph = graph
+        self.Graph = {}        
         # Process highways if edge or node cache is not available or the 'fresh' boolean is True.
-        edges = self.load_edges()
-        nodes = self.load_nodes()
-        if edges and nodes and self.fresh == False:
-            # Create simplified networkx graph
-            self.G=nx.DiGraph(edges)
-            for n in self.G.nodes_iter():
-                self.G.node[n] = nodes[n]
-        else:
+        if not (self.edges_file(mode='load') and self.nodes_file(mode='load') and self.hiclass_file(mode='load') and self.fresh == False):
+            ''' This is how we classify different highway tags into different categories.'''        
+            # Assumptions
+            # -----------
+            # Standard with per lane in metres
+            self.assumed_width_per_lane = 2.5
+            # Assumed number of lanes per hiclass
+            self.assumed_lanes = np.array([3,2,2,1.5,1,1,0.5])
+            # Widths of the 7 types of highways
+            self.assumed_width = self.assumed_lanes*self.assumed_width_per_lane
+            # The highway class processing takes some time, to generate such a short list.
+            # Big time savings to be had from saving it to a file.
+            # In the future, it may be worth having a giant list for all cities!
+            # This is of highways that we know and classified
+            self.hiclass = {'motorway': 0,
+                            'motorway_link': 0,
+                            'trunk': 1,
+                            'trunk_link': 1,
+                            'primary': 2,
+                            'primary_link': 2,
+                            'secondary': 3,
+                            'secondary_link': 3,
+                            'tertiary': 4,
+                            'tertiary_link': 4,
+                            'residential': 5,
+                            'service': 5,
+                            'services': 5,
+                            'track': 5,
+                            'unclassified': 5,
+                            'road': 5,
+                            'living_street': 5,
+                            'pedestrian': 6,
+                            'path': 6,
+                            'raceway': 6,
+                            'proposed': 6,
+                            'steps': 6,
+                            'footway': 6,
+                            'bridleway': 6,
+                            'bus_stop': 6,
+                            'construction': 6,
+                            'cycleway': 6,
+                            }
+            # 1 agent per metre squared is assumed to be the
+            #  minimum area so that agents do not get stuck.
+            # I am assuming that it only affects fraction of edges!
+            # 1 agent / 1 agent per metre square = 1 metre square
+            EA_min = 1.0 # metre squared
             print '{0}: Processing highway.'.format(place)
             SQL = """SELECT r.way, r.osm_id, r.highway, r.oneway, r.width, r.tags->'lanes' FROM
                     planet_osm_line AS r,
@@ -302,10 +341,10 @@ class Highway:
             for n in node_count:
                 if node_count[n] > 1:
                     junctions.append(n)
-            # Create full networkx graph
-            self.F=nx.DiGraph()
-            # Create simplified networkx graph
-            self.G=nx.DiGraph()
+            # Initialise full networkx graph
+            self.Graph['full']=nx.DiGraph()
+            # Initialise simplified networkx graph
+            self.Graph['lite']=nx.DiGraph()
             for way,osm_id,highway,oneway,width,lanes in self.result:
                 # Convert to shapely format
                 s=shapely.wkb.loads(way, hex=True)
@@ -320,8 +359,20 @@ class Highway:
                     distance = self.haversine_distance(nodes[this_node],nodes[that_node])
                     # Call funtion to determine the edges to add using the OSM oneway protocol
                     edges = self.oneway_edges(oneway,foreward,backward)
-                    # Add edges to the FULL graph
-                    self.F.add_edges_from(edges,osm_id=osm_id,highway=highway,oneway=oneway,width=width,lanes=lanes,distance=distance)
+                    # Determine the hiclass and if not, assume it is 6
+                    try:
+                        hiclass = self.hiclass[highway]
+                    except KeyError:
+                        hiclass = self.hiclass[highway] = 6
+                        print '{0}: Highway class 6 will be assumed for: {1}'.format(self.place,highway)
+                    # Calculate assumed width
+                    assumed_width = self.assumed_width[hiclass]
+                    # Calculate area
+                    area = distance*assumed_width
+                    if area < EA_min:
+                        area = EA_min
+                    # Add edges to the FULL graph                    
+                    self.Graph['full'].add_edges_from(edges,osm_id=osm_id,highway=highway,oneway=oneway,width=width,lanes=lanes,distance=distance,hiclass=hiclass,assumed_width=assumed_width,area=area)
                 # Now begin the SIMPLIFIED graph construction
                 this_node = node_indices[0]
                 last_node = this_node
@@ -336,138 +387,106 @@ class Highway:
                         backward = [(that_node, this_node)]
                         # Call funtion to determine the edges to add using the OSM oneway protocol
                         edges = self.oneway_edges(oneway,foreward,backward)
+                        # Determine the hiclass and if not, assume it is 6
+                        hiclass = self.hiclass[highway]
+                        # Calculate assumed width
+                        assumed_width = self.assumed_width[hiclass]
+                        # Calculate area
+                        area = distance*assumed_width
+                        if area < EA_min:
+                            area = EA_min                        
                         # Add edges to the SIMPLIFIED graph
-                        self.G.add_edges_from(edges,osm_id=osm_id,highway=highway,oneway=oneway,width=width,lanes=lanes,distance=distance)
+                        self.Graph['lite'].add_edges_from(edges,osm_id=osm_id,highway=highway,oneway=oneway,width=width,lanes=lanes,distance=distance,hiclass=hiclass,assumed_width=assumed_width,area=area)
                         # Start a new edge
                         this_node = that_node
                         # Reset distance to zero
                         distance = 0
-            print 'Number of edges BEFORE removing intermediate nodes ', self.F.number_of_edges()
-            print 'Number of edges AFTER removing intermediate nodes ', self.G.number_of_edges()
+            print 'Number of edges BEFORE removing intermediate nodes ', self.Graph['full'].number_of_edges()
+            print 'Number of edges AFTER removing intermediate nodes ', self.Graph['lite'].number_of_edges()
             # Save the edge and node list
             # We save the edge list as a 'list' to preserve
             # the order as some elements rely on it.
             # Saving the 'DiGraph' or a 'dict' messes up the order.
-            for n in self.F.nodes_iter():
-                self.F.node[n] = nodes[n]
-            for n in self.G.nodes_iter():
-                self.G.node[n] = nodes[n]
-            self.init_hiclass()
-            # 1 agent per metre squared is assumed to be the
-            #  minimum area so that agents do not get stuck.
-            # I am assuming that it only affects fraction of edges!
-            # 1 agent / 1 agent per metre square = 1 metre square
-            EA_min = 1.0 # metre squared        
-            for u,v in self.G.edges():
-                self.G[u][v]['hiclass']=self.hiclass[self.G[u][v]['highway']]
-                self.G[u][v]['assumed_width']=self.assumed_width[self.G[u][v]['hiclass']]
-                area = self.G[u][v]['distance']*self.G[u][v]['assumed_width']
-                if area < EA_min:
-                    area = EA_min
-                self.G[u][v]['area']= area
-            self.init_pop_dist()
-            self.cache_edges()
-            self.cache_nodes()
+            for k in self.Graph:
+                for n in self.Graph[k].nodes_iter():
+                    self.Graph[k].node[n] = nodes[n]
+                self.G = self.Graph[k]
+                self.init_pop_dist()
+            self.hiclass_file(mode='cache')
+            self.edges_file(mode='cache')
+            self.nodes_file(mode='cache')
+            self.G = self.Graph[self.graph]            
         lon,lat=np.array(zip(*[v for u,v in self.G.nodes(data=True)]))
         self.l,self.r=min(lon),max(lon)
         self.b,self.t=min(lat),max(lat)
 
-    def init_hiclass(self):
-        ''' This is how we classify different highway tags into different categories.'''        
-        # Assumptions
-        # -----------
-        # Standard with per lane in metres
-        self.assumed_width_per_lane = 2.5
-        # Assumed number of lanes per hiclass
-        self.assumed_lanes = np.array([3,2,2,1.5,1,1,0.5])
-        # Widths of the 7 types of highways
-        self.assumed_width = self.assumed_lanes*self.assumed_width_per_lane
-        # The highway class processing takes some time, to generate such a short list.
-        # Big time savings to be had from saving it to a file.
-        # In the future, it may be worth having a giant list for all cities!
-        fname = '{0}/highway.class'.format(folder(self.place))
-        if os.path.isfile(fname) and not self.fresh == True:
-            print '{0}: Loading {1}'.format(self.place,fname)
-            with open(fname, 'r') as file:
-                self.hiclass = pickle.load(file)
-        else:
-            print '{0}: Processing {1}'.format(self.place,fname)
-            # This is of highways that we know and classified
-            self.hiclass = {'motorway': 0,
-                            'motorway_link': 0,
-                            'trunk': 1,
-                            'trunk_link': 1,
-                            'primary': 2,
-                            'primary_link': 2,
-                            'secondary': 3,
-                            'secondary_link': 3,
-                            'tertiary': 4,
-                            'tertiary_link': 4,
-                            'residential': 5,
-                            'service': 5,
-                            'services': 5,
-                            'track': 5,
-                            'unclassified': 5,
-                            'road': 5,
-                            'living_street': 5,
-                            'pedestrian': 6,
-                            'path': 6,
-                            'raceway': 6,
-                            'proposed': 6,
-                            'steps': 6,
-                            'footway': 6,
-                            'bridleway': 6,
-                            'bus_stop': 6,
-                            'construction': 6,
-                            'cycleway': 6,
-                            }
-            # Classify unclassified highway tags
-            # Any unaccounted highways will be assigned 6.
-            highways = self.count_features('highway')
-            for highway,count in highways:
-                try:
-                    # Just checking to see if the key exists
-                    self.hiclass[highway]
-                except KeyError:
-                    self.hiclass[highway] = 6
-                    print '{0}: Highway class 6 will be assumed for: {1}'.format(self.place,highway)
+    def hiclass_file(self,mode):
+        ''' Cache or load hiclass.'''
+        fname = '{0}/highway.class'.format(folder(self.place))        
+        if mode == 'cache':
             print '{0}: Writing {1}'.format(self.place,fname)
             with open(fname, 'w') as file:
                 pickle.dump(self.hiclass, file)        
-    
-    def cache_edges(self):
-        ''' Cache edges to a file.'''
-        fname = '{0}/highway.edges.gz'.format(folder(self.place))
-        print '{0}: Writing {1}'.format(self.place,fname)
-        with gzip.open(fname, 'w') as file:
-            pickle.dump(self.G.edges(data=True), file)
+        elif mode == 'load':
+            if os.path.isfile(fname):        
+                print '{0}: Loading {1}'.format(self.place,fname)
+                with open(fname, 'r') as file:
+                    self.hiclass = pickle.load(file)
+                return True
+            else:
+                return False
 
-    def cache_nodes(self):
-        fname = '{0}/highway.nodes.gz'.format(folder(self.place))
-        print '{0}: Writing {1}'.format(self.place,fname)
-        with gzip.open(fname, 'w') as file:
-            pickle.dump(self.G.nodes(data=True), file)
+    def edges_file(self,mode):
+        ''' Cache or load edges.'''
+        # If self.graph = full:
+        #   Read or write both full and lite graph
+        # If self.graph = lite:
+        #   Read or write only the lite graph
+        for graph in ['lite','full']:
+            # Skip if self.graph == 'lite'
+            if self.graph == 'lite' and graph == 'full':
+                continue
+            fname = '{0}/highway.{1}.edges.gz'.format(folder(self.place),graph)
+            if mode == 'cache':
+                print '{0}: Writing {1}'.format(self.place,fname)
+                with gzip.open(fname, 'w') as file:
+                    pickle.dump(self.Graph[graph].edges(data=True), file)
+            elif mode == 'load':
+                try:
+                    print '{0}: Loading {1}'.format(self.place,fname)
+                    with gzip.open(fname, 'r') as file:
+                        self.G = self.Graph[graph] = nx.DiGraph(pickle.load(file))
+                    if self.graph == graph:
+                        return True
+                except IOError:
+                    return False
 
-    def load_edges(self):
-        ''' Load edges from the cache file.'''
-        fname = '{0}/highway.edges.gz'.format(folder(self.place))
-        if os.path.isfile(fname):
-            print '{0}: Loading {1}'.format(self.place,fname)
-            with gzip.open(fname, 'r') as file:
-                edges = pickle.load(file)
-            return edges
-        else:
-            return False
-
-    def load_nodes(self):
-        fname = '{0}/highway.nodes.gz'.format(folder(self.place))
-        if os.path.isfile(fname):
-            print '{0}: Loading {1}'.format(self.place,fname)
-            with gzip.open(fname, 'r') as file:
-                nodes = dict(pickle.load(file))
-            return nodes
-        else:
-            return False
+    def nodes_file(self,mode):
+        ''' Cache or load nodes.'''
+        # If self.graph = full:
+        #   Read or write both full and lite graph
+        # If self.graph = lite:
+        #   Read or write only the lite graph
+        for graph in ['lite','full']:
+            # Skip if self.graph == 'lite'
+            if self.graph == 'lite' and graph == 'full':
+                continue                  
+            fname = '{0}/highway.{1}.nodes.gz'.format(folder(self.place),graph)
+            if mode == 'cache':
+                print '{0}: Writing {1}'.format(self.place,fname)
+                with gzip.open(fname, 'w') as file:
+                    pickle.dump(self.Graph[graph].nodes(data=True), file)              
+            elif mode == 'load':
+                try:
+                    print '{0}: Loading {1}'.format(self.place,fname)
+                    with gzip.open(fname, 'r') as file:
+                        nodes = dict(pickle.load(file))
+                        for n in self.Graph[graph].nodes_iter():
+                            self.Graph[graph].node[n] = nodes[n]
+                    if self.graph == graph:
+                        return True
+                except IOError:
+                    return False
 
     def nearest_destin_from_edge(self,edge_index):
         ''' Determines the nearest destin index and the distance from input edge index.
@@ -507,7 +526,7 @@ class Highway:
                 pass
         return nearest_destin, distance_destin
 
-    def geojson_edges(self, fname, properties=None):
+    def geojson_edges(self, fname, properties={}):
         ''' Produces a geojson file with feature tag.
 
             Inputs
@@ -521,20 +540,16 @@ class Highway:
                 geojson file
         '''
         features = []
-        for i,e in enumerate(self.edges):
+        for u,v,d in self.G.edges_iter(data=True):
             try:
-                p = properties[i]
-            except (NameError, KeyError):
+                p = properties[(u,v)]
+            except KeyError:
                 p = {}
-            u,v,d = e
             # Generate properties
-            p["index"] = i
             p["u"] = u
             p["v"] = v
-            # Determine nearest catchment areas            
-            p["nearest_destin"],p["distance_destin"] = self.nearest_destin_from_edge(i)
             # Determine highway class and corresponding assumed width          
-            p.update(d)    
+            p.update(d)
             l = LineString([self.G.node[u],self.G.node[v]])
             feature = {
                 "type": "Feature",
@@ -636,7 +651,7 @@ class Highway:
             with open(fname, 'w') as file:
                 pickle.dump(self.destins, file)
 
-    def init_route(self):
+    def init_route(self,save=True):
         ''' Initialise route and route length dictionaries
             
             Properties
@@ -657,7 +672,7 @@ class Highway:
             self.init_destins()
         # We are reversing so that we can determine the shortest path to a single sink rather than from a single source
         GT = self.G.reverse(copy=True)
-        self.route_folder = '{0}/highway.route'.format(folder(self.place))
+        self.route_folder = '{0}/highway.{1}.route'.format(folder(self.place),self.graph)
         if not os.path.isdir(self.route_folder):
             os.mkdir(self.route_folder)
         for destin in self.destins:
@@ -678,10 +693,11 @@ class Highway:
                         self.route[destin][node] = path[node][-2]
                     except IndexError:
                         pass
-                # Dump the results to a file
-                print '{0}: Writing {1}'.format(self.place,fname)
-                with open(fname, 'w') as file:
-                    pickle.dump([self.route[destin],self.route_length[destin]], file)
+                if save:        
+                    # Dump the results to a file
+                    print '{0}: Writing {1}'.format(self.place,fname)
+                    with open(fname, 'w') as file:
+                        pickle.dump([self.route[destin],self.route_length[destin]], file)
         # Determine the list of all destination edges
         for u,v in self.G.edges_iter():
             # Iterate over all destins and find the maximum distance between node u and v
@@ -764,15 +780,10 @@ class Highway:
     def fig_pop_dist(self):
         ''' Generate the figure for processed population.
         '''
-        try:
-            self.pop
-        except AttributeError:
-            self.init_pop_dist()
         edgelist,edgewidth = zip(*[((u,v),d['pop_dist'])for u,v,d in self.G.edges(data=True)])
         thickest_line_width = 2
         edgewidth=np.array(edgewidth)/max(edgewidth)*thickest_line_width
         nx.draw_networkx_edges(self.G,pos=self.G.node,arrows=False,edgelist=edgelist,edge_color=edgewidth,width=edgewidth,alpha=1.0)
-        return fig
     
     def fig_destins(self):
         ''' Returns highway map figure with the exits nodes numbered.
