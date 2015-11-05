@@ -1,6 +1,5 @@
 import sys
 sys.path.append('core')
-
 import db
 reload(db)
 

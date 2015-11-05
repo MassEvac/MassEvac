@@ -1,13 +1,15 @@
-import abm
+import sys
+sys.path.append('core')
+import abm, db
 reload(abm)
-import db
 reload(db)
-f = db.Flood('flood/1.tif')
-# print f.floodStatus((f.maxx,f.maxy),(f.minx,f.miny))
-# print f.isFlooded((f.maxx,f.maxy),(f.minx,f.miny))
-# plt.ion()
-# f.fig()
-s = abm.Sim('flood',(f.maxx,f.maxy,f.minx,f.miny))
+
+f = db.Flood('flood/test/severe.tif')
+print f.floodStatus((f.maxx,f.maxy),(f.minx,f.miny))
+print f.isFlooded((f.maxx,f.maxy),(f.minx,f.miny))
+plt.ion()
+f.fig()
+s = abm.Sim('flood','Carlisle')
 # properties=[{'flooded':f.isFlooded(s.h.nodes[u],s.h.nodes[v])} for u,v,d in s.h.edges]
 # s.h.geojson_edges('flood/test.json',properties)
 
@@ -16,5 +18,5 @@ s.blocked=[f.isFlooded(s.h.nodes[u],s.h.nodes[v]) for u,v,d in s.h.edges]
 
 s.scenarios=['ia']
 s.random_successor = True
-s.n=80000
-s.run_sim()
+s.n=100000
+s.run()
