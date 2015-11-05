@@ -1,9 +1,6 @@
 import sys
 sys.path.append('core')
-
-import abm
-import db
-
+import abm, db
 reload(abm)
 reload(db)
 
