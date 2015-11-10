@@ -61,9 +61,17 @@ from shapely.geometry.geo import box
 flood = db.Flood('/vsizip/{}/{}'.format(zip_file,flood_files[0]))
 bbox = box(flood.minx,flood.miny,flood.maxx,flood.maxy)
 
+# See if the node is reachable or not
+def reachable(node):
+    try:
+        normal.route[hospital][node]
+        return True
+    except KeyError:
+        return False
+
 # Get a list of all the nodes that intersect with the rectangle
 from shapely.geometry import Point
-nodes_in_bbox = [k for k,v in normal.G.nodes(data=True) if bbox.intersects(Point(v))]
+nodes_in_bbox = [k for k,v in normal.G.nodes(data=True) if bbox.intersects(Point(v)) and reachable(k)]
 
 # Output a file with list of nodes in the bbox with their latlon
 with open('flood/nodes_in_bbox.csv','w') as file:
@@ -270,5 +278,5 @@ for i in range(1,101,1):
 # Save the outputs to a file
 with gzip.open('flood/all_nodes.csv.gz', 'wb') as csvfile:
     writer = csv.writer(csvfile, delimiter=',')
-    for k in all_nodes:
+    for k in nodes_in_bbox:
         writer.writerow([k]+all_nodes[k])

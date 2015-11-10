@@ -4,12 +4,16 @@ import abm, db
 reload(abm)
 reload(db)
 
-f = db.Flood('flood/test/severe.tif')
+# Load flood scenario
+f = db.Flood('flood/qgis/severe_binary.tif')
 print f.floodStatus((f.maxx,f.maxy),(f.minx,f.miny))
 print f.isFlooded((f.maxx,f.maxy),(f.minx,f.miny))
 plt.ion()
 f.fig()
+
+# Load simulation framework
 s = abm.Sim('flood','Carlisle')
+
 # properties=[{'flooded':f.isFlooded(s.h.nodes[u],s.h.nodes[v])} for u,v,d in s.h.edges]
 # s.h.geojson_edges('flood/test.json',properties)
 
