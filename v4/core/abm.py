@@ -40,9 +40,9 @@ class FundamentalDiagram:
             ----------
                 self.speedup: float
                     The specified speedup factor
-                self.kCf: float
-                    The density cap for the edges
-                self. vFf: float
+                self.k_vmin: float
+                    The density cap threshold for minimum velocity
+                self.v_ff: float
                     The free flow velocity
                 self.bins: int
                     Number of bins to allocate simulation results
@@ -50,92 +50,94 @@ class FundamentalDiagram:
                     The mean bin density for each bin
                 self.v: dict
                     Dictionary lookup of velocity using parameter density
-                self.kMax: float
-                    Maximum density
+                self.k_lim: float
+                    Limit density
                 self.KOpt: float
                     Optimum density which the flow is maximum
         '''
         # Free flow velocity (m/s)
-        self.vFf = 1.34
+        self.v_ff = 1.34
+        # Flat density
+        self.k_vmin = 4.4
+        # Density cap
+        self.k_lim = 9.0
         # Congested flow (agent/m^2)
         # Must be less than this
         # This value CANNOT be looked up in v_dict[k]!
-        self.kCf = 5.0
-        # Number of bins to profile the density with
-        self.bins = int(self.kCf)
-        # This is the average density in each bin
-        # Note that the last bin is 5.25 = (5+5.5)/2
-        self.bin_mean = []
-        for i in range(self.bins):
-            self.bin_mean.append(i+0.5)
         # Obtain the speedup factor
         self.speedup = speedup
         # Number of decimal places in the velocity lookup dictionary v_dict[k]
         self.dp = 4
-        # Create a list of density
-        self.k = [float(i)/10**self.dp for i in range(int(self.kCf*10**self.dp))]
-        # Create a list of velocity
-        self.v = []
-        for k in self.k:
-            self.v.append(self.velocity(k))
-        # Create a list of flow
-        self.q=[v*k for v,k in zip(self.v,self.k)]
-        # Velocity lookup dictionary
-        self.v_dict = dict([(round(k,self.dp),v) for k,v in zip(self.k,self.v)])
-        # Optimum density where flow is maximum
-        self.kOpt = self.k[self.q.index(max(self.q))]
-        # Maximum density that can be looked up
-        self.kMax = max(self.k)
+        # Precompute results - 14x faster to use dict
+        self.precomputation()
         # Labels for the figures
         self.fontsize = 20
         self.densityLabel = '$\mathrm{k \ [ped/m^2]}$'
         self.velocityLabel = '$\mathrm{v \ [m/s]}$'
         self.flowLabel = '$\mathrm{Q \ [ped/(ms)]}$'
         
+    def precomputation(self):
+        # Create a list of density
+        self.k = [float(i)/10**self.dp for i in range(int(self.k_lim*10**self.dp))]
+        # Maximum density that can be looked up
+        self.k_max = max(self.k)
+        # Create a list of velocity
+        self.v = [self.velocity(k) for k in self.k]
+        # Create a list of flow
+        self.q = [v*k for v,k in zip(self.v,self.k)]
+        # Velocity lookup dictionary
+        self.v_dict = dict(zip(self.k,self.v))
+        # Optimum density where flow is maximum
+        self.k_opt = self.k[self.q.index(max(self.q))]
+
     # This should form the basis for calculation of speed from density using,
     def velocity(self, k):
         ''' Calculate velocity from the input density within the boundary limits.
         '''
-        try:
-            # Weidmann 1993
-            v = self.vFf*(1.0-np.exp(-1.913*(1.0/k-1.0/5.4)))            
-        except ZeroDivisionError:
+        if k == 0:
             # Return free flow velocity if k = 0.0 agents per metre square
-            v = self.vFf
+            v = self.v_ff
+        else:
+            # Assume velocity is constant at density over 4.4 ped/m^2
+            if k > self.k_vmin:
+                k = self.k_vmin
+            # Weidmann 1993
+            v = self.v_ff*(1.0-np.exp(-1.913*(1.0/k-1.0/5.4)))
         return v * self.speedup
     
     def figure(self):
-        offset = 0.1
+        x_offset = 0.5
+        y_offset = 0.2
         k = self.k
         v = [v/self.speedup for v in self.v]
         q = [q/self.speedup for q in self.q]
         fig, (ax1,ax2) = plt.subplots(2, sharex=False, figsize=(8,8))        
         ax1.plot(k,v,'r-',linewidth=4,label='$\mathrm{v_{max} \ = \ %0.2f \ [m/s]}$'%max(v))
-        ax1.set_xlim(0,self.kCf+offset)
+        ax1.set_xlim(0,self.k_max+x_offset)
         ax1.set_ylabel(self.velocityLabel,fontsize=self.fontsize)
-        ax1.set_ylim(0,self.vFf+offset)
+        ax1.set_ylim(0,self.v_ff+y_offset)
         #ax.legend(loc=2,fontsize=self.fontsize)
         ax2.plot(k,q,'g--',linewidth=4,label='$\mathrm{Q_{max} = %0.2f \ [ped/(ms)]}$'%max(q))
-        ax2.set_xlabel(self.densityLabel,fontsize=self.fontsize)                
+        ax2.set_xlim(0,self.k_max+x_offset)
+        ax2.set_xlabel(self.densityLabel,fontsize=self.fontsize)
         ax2.set_ylabel(self.flowLabel,fontsize=self.fontsize)
-        ax2.set_ylim(min(q),max(q)+offset)
-        #ax2.legend(loc=0,fontsize=self.fontsize)
-        ax1.axvline(self.kOpt,linestyle='-.',label='$\mathrm{{k_{opt} = %0.2f} \ [ped/m^2]}$'%self.kOpt)
-        ax2.axvline(self.kOpt,linestyle='-.')        
-        ax1.legend()
-        ax2.legend()
+        ax2.set_ylim(min(q),max(q)+y_offset)
+
+        ax1.axvline(self.k_opt,linestyle='-.',linewidth=2,label='$\mathrm{{k_{opt} = %0.2f} \ [ped/m^2]}$'%self.k_opt)
+        ax2.axvline(self.k_opt,linestyle='-.',linewidth=2)        
+
+        # ax1.axvline(self.k_vmin,c='g',linestyle='-.',linewidth=2,label='$\mathrm{{k_{v,min} = %0.2f} \ [ped/m^2]}$'%self.k_vmin)
+        # ax2.axvline(self.k_vmin,c='g',linestyle='-.',linewidth=2)
+
+        # ax1.axvline(self.k_lim,c='r',linestyle='-.',linewidth=2,label='$\mathrm{{k_{lim} = %0.2f} \ [ped/m^2]}$'%self.k_lim)        
+        # ax2.axvline(self.k_lim,c='r',linestyle='-.',linewidth=2)
+
+        ax1.legend(loc=1)
+        ax2.legend(loc=1)
+
         plt.gcf().subplots_adjust(bottom=0.15)
-        plt.savefig('fd.pdf')
+        plt.savefig('figs/fd.pdf')
         return fig
-    
-    def which_bin(self,k):
-        ''' Sometimes, the initial position of the agents may lead the density to exceed the
-            maximum density, in which case revert the bin index to less than maximum bin index
-        '''
-        bin = int(k)
-        if not bin < self.bins:
-            bin = self.bins - 1
-        return bin
 
 # Import fundamental diagram
 fd = FundamentalDiagram(speedup=60)
@@ -146,12 +148,6 @@ fd = FundamentalDiagram(speedup=60)
             Free flow - no agent interaction
         ia
             Interaction mode - agents interact with each other
-        c0
-            Capped density - density capped at maximum flow
-        c1
-            Capped density+1 - density capped at maximum flow+1
-        kCap
-            Link density cap
         df
             Density factor
         label
@@ -159,12 +155,10 @@ fd = FundamentalDiagram(speedup=60)
 '''
 settings = {
     'ia':{
-        'kCap':fd.kMax,
         'df':1.0,
         'label':'With Interaction, No Intervention',
     },
     'ff':{
-        'kCap':fd.kMax,
         'df':0.0,
         'label':'Free flow',
     },
@@ -400,7 +394,7 @@ class Sim:
         # NOTE: Need to be able to raise error if no destination
         for u,v,d in self.h.G.edges_iter(data=True):
             # Determine number of agents that are allowed on a given edge
-            self.h.G[u][v]['capacity'] = int(settings[self.scenario]['kCap']*d['area'])
+            self.h.G[u][v]['capacity'] = int(fd.k_max*d['area'])
             # Initialise the queue length
             self.h.G[u][v]['queue_length'] = 0
             # Initialise the buffer length
@@ -625,7 +619,7 @@ class Sim:
                 print 'Execution took {:0.3f} seconds.'.format(self.execution_time)
                 # Log events
 
-                tracks_file(mode='cache')
+                self.tracks_file(mode='cache')
 
                 success += 1
         return success
@@ -667,7 +661,7 @@ class Sim:
             If df = 0, returns 0 density so that we can determine free flow evacuation time.
         '''
         if edge['blocked']:
-            k = fd.kMax
+            k = fd.k_max
         else:
             k = settings[self.scenario]['df']*edge['queue_length']/edge['area']
         return round(k,fd.dp)
@@ -715,13 +709,13 @@ class Viewer:
         # Load colourmap
         cm = plt.cm.get_cmap('Spectral')
         # Initialise points
-        self.points = ax.scatter([0],[0],c=[0],marker='o',edgecolors='none',cmap=cm,alpha=0.5,clim=[0.1,fd.vFf],norm=LogNorm(vmin=0.1, vmax=fd.vFf))
+        self.points = ax.scatter([0],[0],c=[0],marker='o',edgecolors='none',cmap=cm,alpha=0.5,clim=[0.1,fd.v_ff],norm=LogNorm(vmin=0.1, vmax=fd.v_ff))
         # Initialise text
         self.time_text = ax.text(0.02, 0.94, '', transform=ax.transAxes,alpha=0.5,size='large')
         # Draw colorbar and label
         divider = make_axes_locatable(plt.gca())
         cax = divider.append_axes("right", "5%", pad="3%")
-        cb = fig.colorbar(points,cax=cax,ticks=[fd.v_dict[k]/fd.speedup for k in range(int(fd.kCf))], format='$%.2f$')
+        cb = fig.colorbar(self.points,cax=cax,ticks=[fd.v_dict[k]/fd.speedup for k in range(int(fd.k_lim))], format='$%.2f$')
         cb.set_label("Velocity $m/s$", rotation=90)
 
         plt.ion()
@@ -742,7 +736,7 @@ class Viewer:
         return self.points, self.time_text
 
     def animate(self,t):
-        P,S = PS(t)
+        P,S = self.PS(t)
         self.agents_left = len(S) * self.denominator
         self.points.set_offsets(P)
         self.points.set_array(S)

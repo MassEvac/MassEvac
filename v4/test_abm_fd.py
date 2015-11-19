@@ -20,13 +20,13 @@ resarray = np.zeros((len(x),len(y),len(z)))
 for i,self.n in enumerate(x):
     with open('data/tgf2015/{}.csv'.format(self.n), 'w') as fp:
         a = csv.writer(fp, delimiter=',');
-        for j,abm.fd.kFlat in enumerate(y):
-            for k,abm.fd.kLim in enumerate(z):
+        for j,abm.fd.k_vmin in enumerate(y):
+            for k,abm.fd.k_lim in enumerate(z):
                 abm.fd.precomputation()
                 self.use_buffer = False
                 self.run(agent_progress_bar=False)
                 resarray[i][j][k] = self.tstep
-                data = [[self.n,abm.fd.kFlat,abm.fd.kLim,self.tstep]]
+                data = [[self.n,abm.fd.k_vmin,abm.fd.k_lim,self.tstep]]
                 print data
                 a.writerows(data)
 
