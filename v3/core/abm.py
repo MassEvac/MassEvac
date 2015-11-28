@@ -75,7 +75,7 @@ p2015 = 63.935
 p_factor = p2015/p2000
 
 class FundamentalDiagram:
-    def __init__(self,speedup):
+    def __init__(self,speedup,k_vmin,k_lim):
         ''' This class defines the fundamental diagram.
 
             Inputs
@@ -86,9 +86,9 @@ class FundamentalDiagram:
             ----------
                 self.speedup: float
                     The specified speedup factor
-                self.kCf: float
-                    The density cap for the edges
-                self. vFf: float
+                self.k_vmin: float
+                    The density cap threshold for minimum velocity
+                self.v_ff: float
                     The free flow velocity
                 self.bins: int
                     Number of bins to allocate simulation results
@@ -96,84 +96,104 @@ class FundamentalDiagram:
                     The mean bin density for each bin
                 self.v: dict
                     Dictionary lookup of velocity using parameter density
-                self.kMax: float
-                    Maximum density
-                self.KOpt: float
+                self.k_lim: float
+                    Limit density
+                self.k_opt: float
                     Optimum density which the flow is maximum
         '''
         # Free flow velocity (m/s)
-        self.vFf = 1.34
+        self.v_ff = 1.34
+        # Flat density
+        self.k_vmin = k_vmin
+        # Density cap
+        self.k_lim = k_lim
         # Congested flow (agent/m^2)
         # Must be less than this
         # This value CANNOT be looked up in v_dict[k]!
-        self.kCf = 5.0
-        # Number of bins to profile the density with
-        self.bins = int(self.kCf)
-        # This is the average density in each bin
-        # Note that the last bin is 5.25 = (5+5.5)/2
-        self.bin_mean = []
-        for i in range(self.bins):
-            self.bin_mean.append(i+0.5)
         # Obtain the speedup factor
         self.speedup = speedup
         # Number of decimal places in the velocity lookup dictionary v_dict[k]
         self.dp = 4
-        # Create a list of density
-        self.k = [float(i)/10**self.dp for i in range(int(self.kCf*10**self.dp))]
-        # Create a list of velocity
-        self.v = []
-        for k in self.k:
-            self.v.append(self.velocity(k))
-        # Create a list of flow
-        self.q=[v*k for v,k in zip(self.v,self.k)]
-        # Velocity lookup dictionary
-        self.v_dict = dict([(round(k,self.dp),v) for k,v in zip(self.k,self.v)])
-        # Optimum density where flow is maximum
-        self.kOpt = self.k[self.q.index(max(self.q))]
-        # Maximum density that can be looked up
-        self.kMax = max(self.k)
+        # Precompute results - 14x faster to use dict
+        self.precomputation()
         # Labels for the figures
         self.fontsize = 20
         self.densityLabel = '$\mathrm{k \ [ped/m^2]}$'
         self.velocityLabel = '$\mathrm{v \ [m/s]}$'
         self.flowLabel = '$\mathrm{Q \ [ped/(ms)]}$'
         
+    def precomputation(self):
+        # Create a list of density
+        self.k = [float(i)/10**self.dp for i in range(int(self.k_lim*10**self.dp))]
+        # Maximum density that can be looked up
+        self.k_max = max(self.k)
+        # Create a list of velocity
+        self.v = [self.velocity(k) for k in self.k]
+        # Create a list of flow
+        self.q = [v*k for v,k in zip(self.v,self.k)]
+        # Velocity lookup dictionary
+        self.v_dict = dict(zip(self.k,self.v))
+        # Optimum density where flow is maximum
+        self.k_opt = self.k[self.q.index(max(self.q))]
+        # Number of bins
+        self.bins = int(self.k_lim)
+        # Bin means
+        self.bin_mean = []
+        for i in range(self.bins):
+	    self.bin_mean.append(i+0.5)
+
     # This should form the basis for calculation of speed from density using,
     def velocity(self, k):
         ''' Calculate velocity from the input density within the boundary limits.
         '''
-        try:
-            # Weidmann 1993
-            v = self.vFf*(1.0-np.exp(-1.913*(1.0/k-1.0/5.4)))            
-        except ZeroDivisionError:
+        if k == 0:
             # Return free flow velocity if k = 0.0 agents per metre square
-            v = self.vFf
+            v = self.v_ff
+        else:
+            # Assume velocity is constant at density over 4.4 ped/m^2
+            if k > self.k_vmin:
+                k = self.k_vmin
+            # Weidmann 1993
+            v = self.v_ff*(1.0-np.exp(-1.913*(1.0/k-1.0/5.4)))
         return v * self.speedup
     
     def figure(self):
-        offset = 0.1
+        x_offset = 0.5
+        y_offset = 0.2
         k = self.k
         v = [v/self.speedup for v in self.v]
         q = [q/self.speedup for q in self.q]
         fig, (ax1,ax2) = plt.subplots(2, sharex=False, figsize=(8,8))        
         ax1.plot(k,v,'r-',linewidth=4,label='$\mathrm{v_{max} \ = \ %0.2f \ [m/s]}$'%max(v))
-        ax1.set_xlim(0,self.kCf+offset)
+        ax1.set_xlim(0,self.k_max+x_offset)
         ax1.set_ylabel(self.velocityLabel,fontsize=self.fontsize)
-        ax1.set_ylim(0,self.vFf+offset)
+        ax1.set_ylim(0,self.v_ff+y_offset)
         #ax.legend(loc=2,fontsize=self.fontsize)
         ax2.plot(k,q,'g--',linewidth=4,label='$\mathrm{Q_{max} = %0.2f \ [ped/(ms)]}$'%max(q))
-        ax2.set_xlabel(self.densityLabel,fontsize=self.fontsize)                
+        ax2.set_xlim(0,self.k_max+x_offset)
+        ax2.set_xlabel(self.densityLabel,fontsize=self.fontsize)
         ax2.set_ylabel(self.flowLabel,fontsize=self.fontsize)
-        ax2.set_ylim(min(q),max(q)+offset)
-        #ax2.legend(loc=0,fontsize=self.fontsize)
-        ax1.axvline(self.kOpt,linestyle='-.',label='$\mathrm{{k_{opt} = %0.2f} \ [ped/m^2]}$'%self.kOpt)
-        ax2.axvline(self.kOpt,linestyle='-.')        
-        ax1.legend()
-        ax2.legend()
+        ax2.set_ylim(min(q),max(q)+y_offset)
+
+        ax1.axvline(self.k_opt,linestyle='-.',linewidth=2,label='$\mathrm{{k_{opt} = %0.2f} \ [ped/m^2]}$'%self.k_opt)
+        ax2.axvline(self.k_opt,linestyle='-.',linewidth=2)        
+
+        # ax1.axvline(self.k_vmin,c='g',linestyle='-.',linewidth=2,label='$\mathrm{{k_{v,min} = %0.2f} \ [ped/m^2]}$'%self.k_vmin)
+        # ax2.axvline(self.k_vmin,c='g',linestyle='-.',linewidth=2)
+
+        # ax1.axvline(self.k_lim,c='r',linestyle='-.',linewidth=2,label='$\mathrm{{k_{lim} = %0.2f} \ [ped/m^2]}$'%self.k_lim)        
+        # ax2.axvline(self.k_lim,c='r',linestyle='-.',linewidth=2)
+
+        ax1.legend(loc=1)
+        ax2.legend(loc=1)
+
         plt.gcf().subplots_adjust(bottom=0.15)
-        plt.savefig('fd.pdf')
+
+        fname = 'figs/fd-kvmin-{}-klim-{}.pdf'.format(self.k_vmin,self.k_lim)
+        print fname
+        plt.savefig(fname)
         return fig
-    
+
     def which_bin(self,k):
         ''' Sometimes, the initial position of the agents may lead the density to exceed the
             maximum density, in which case revert the bin index to less than maximum bin index
@@ -182,9 +202,6 @@ class FundamentalDiagram:
         if not bin < self.bins:
             bin = self.bins - 1
         return bin
-
-# Import fundamental diagram
-fd = FundamentalDiagram(speedup=60)
 
 ''' Scenario Definitions
     --------------------
@@ -196,32 +213,34 @@ fd = FundamentalDiagram(speedup=60)
             Capped density - density capped at maximum flow
         c1
             Capped density+1 - density capped at maximum flow+1
-        kCap
-            Link density cap
         df
             Density factor
         label
             Scenario label
 '''
 settings = {
-    'ia':{
-        'kCap':fd.kMax,
+    'k5':{ # Density limit of 5
         'df':1.0,
+        'k_vmin':5,        
+        'k_lim':5,        
         'label':'With Interaction, No Intervention',
     },
-    'c0':{
-        'kCap':fd.kOpt,
+    'k6':{ # Density limit of 6
         'df':1.0,
-        'label':'With Intervention (Optimum Flow)',
+        'k_vmin':5,        
+        'k_lim':6,        
+        'label':'With Interaction, No Intervention',
     },
-    'c1':{
-        'kCap':fd.kOpt+1,
+    'k7':{ # Density limit of 7
         'df':1.0,
-        'label':'With Intervention (Optimum Flow+1)'
-    },
-    'ff':{
-        'kCap':fd.kMax,
+        'k_vmin':5,        
+        'k_lim':7,
+        'label':'With Interaction, No Intervention',
+    },        
+    'k5-ff':{ # Density limit of 5 but free flow
         'df':0.0,
+        'k_vmin':5,
+        'k_lim':5,
         'label':'Free flow',
     },
 }
@@ -251,21 +270,21 @@ class Places:
         '''
         self.sim = sim
         self.fresh = fresh
-        self.queries = {
-                    # +/- 25% area that of 'City of Bristol' where 235816681.819764 is the area.
-                    # Single polygon
-                    # Less than admin level 10
-                    'bristol25':'''SELECT * FROM
-                        (SELECT p.osm_id, p.name, p.admin_level, SUM(ST_Area(p.way,false))  AS area, COUNT(p.osm_id) AS polygon_count FROM planet_osm_polygon AS p WHERE boundary='administrative' GROUP BY p.osm_id, p.name,p.admin_level ORDER BY admin_level, area DESC) AS q
-                        WHERE polygon_count = 1 AND CAST(admin_level AS INT) < 10 AND name != '' AND area != 'NaN' AND area BETWEEN 235816681.819764*3/4 AND 235816681.819764*5/4'''
-                    }
         fname = 'places/{0}'.format(self.sim)
         if os.path.isfile(fname) and not self.fresh == True:
             print 'Loading {0}'.format(fname)
             with open(fname, 'r') as f:
                 self.result=pickle.load(f)
         else:
-            print 'Processing {0}'.format(fname)            
+            print 'Processing {0}'.format(fname)
+            self.queries = {
+                        # +/- 25% area that of 'City of Bristol' where 235816681.819764 is the area.
+                        # Single polygon
+                        # Less than admin level 10
+                        'bristol25':'''SELECT * FROM
+                            (SELECT p.osm_id, p.name, p.admin_level, SUM(ST_Area(p.way,false))  AS area, COUNT(p.osm_id) AS polygon_count FROM planet_osm_polygon AS p WHERE boundary='administrative' GROUP BY p.osm_id, p.name,p.admin_level ORDER BY admin_level, area DESC) AS q
+                            WHERE polygon_count = 1 AND CAST(admin_level AS INT) < 10 AND name != '' AND area != 'NaN' AND area BETWEEN 235816681.819764*3/4 AND 235816681.819764*5/4''',
+                        }            
             self.result = db.Query(self.queries[sim]).result
             print 'Writing {0}'.format(fname)
             with open(fname, 'w') as f:
@@ -308,6 +327,8 @@ class Sim:
         self.agent_marker = 'scatter'
         # Current scenario
         self.scenario = None
+        # use KP
+        self.use_KP =  False
         # List of scenarios available
         self.scenarios = settings.keys()
         # Folder to store the simulation and logging folder
@@ -375,6 +396,7 @@ class Sim:
         ''' Set the current scenario to the input scenario label.
         '''
         self.scenario = scenario
+        self.fd = FundamentalDiagram(speedup=60,k_vmin=settings[self.scenario]['k_vmin'],k_lim=settings[self.scenario]['k_lim'])
         self.log_print('Current scenario set to ({0}).'.format(settings[self.scenario]['label']))
 
     def agents_file(self):
@@ -475,7 +497,10 @@ class Sim:
     def load_result_meta(self):
         ''' Cache of meta data that takes a long time to calculate which is result dependent.
         '''
-        self.load_agents()        
+        try:
+            self.X
+        except AttributeError:
+            self.load_agents()    
         self.load_results()
         # Simulation time grouped by destin
         self.T_destin = {}
@@ -529,7 +554,7 @@ class Sim:
                 # Distance to exit grouped by destin
                 self.DX_destin[x].append(dx)
             except KeyError:
-                self.n_destin[x] = 0           
+                self.n_destin[x] = 1        
                 self.DX_destin[x] = [dx]
         # Numeric representation of destinations
         self.X_num = [self.h.destin_dict[d] for d in self.X]        
@@ -542,22 +567,23 @@ class Sim:
         file = open(fname, 'w')
         pickle.dump(self.T, file)
         file.close()
-        fname = '{0}/KP_agent'.format(self.scenario_file())
-        self.log_print('Writing {0}'.format(fname))
-        file = open(fname, 'w')
-        pickle.dump(self.KP_agent, file)
-        file.close()
-        fname = '{0}/KP_tstep'.format(self.scenario_file())
-        self.log_print('Writing {0}'.format(fname))
-        file = open(fname, 'w')
-        pickle.dump(self.KP_tstep, file)
-        file.close()
-        fname = '{0}/KP_edges'.format(self.scenario_file())
-        self.log_print('Writing {0}'.format(fname))
-        file = open(fname, 'w')
-        pickle.dump(self.KP_edges, file)
-        file.close()
-        if self.tracked_agent:
+        if self.use_KP:
+            fname = '{0}/KP_agent'.format(self.scenario_file())
+            self.log_print('Writing {0}'.format(fname))
+            file = open(fname, 'w')
+            pickle.dump(self.KP_agent, file)
+            file.close()
+            fname = '{0}/KP_tstep'.format(self.scenario_file())
+            self.log_print('Writing {0}'.format(fname))
+            file = open(fname, 'w')
+            pickle.dump(self.KP_tstep, file)
+            file.close()
+            fname = '{0}/KP_edges'.format(self.scenario_file())
+            self.log_print('Writing {0}'.format(fname))
+            file = open(fname, 'w')
+            pickle.dump(self.KP_edges, file)
+            file.close()
+        if self.track_list:
             fname = '{0}/tracked_agent'.format(self.scenario_file())
             self.log_print('Writing {0}'.format(fname))
             file = open(fname, 'w')
@@ -582,42 +608,42 @@ class Sim:
             file.close()
         else:
             success = False
-        fname = '{0}/KP_agent'.format(self.scenario_file())
-        if os.path.isfile(fname):
-            self.log_print('Loading {0}'.format(fname))
-            file = open(fname, 'r')
-            self.KP_agent = pickle.load(file)
-            file.close()
-        else:
-            success = False
-        fname = '{0}/KP_tstep'.format(self.scenario_file())
-        if os.path.isfile(fname):
-            self.log_print('Loading {0}'.format(fname))
-            file = open(fname, 'r')
-            self.KP_tstep = pickle.load(file)
-            file.close()
-        else:
-            success = False
-        fname = '{0}/KP_edges'.format(self.scenario_file())
-        if os.path.isfile(fname):
-            # Load cache
-            self.log_print('Loading {0}'.format(fname))
-            file = open(fname, 'r')
-            self.KP_edges = pickle.load(file)
-            file.close()
-        else:
-            success = False
-        fname = '{0}/tracked_agent'.format(self.scenario_file())
-        if os.path.isfile(fname):
-            # Load cache
-            self.log_print('Loading {0}'.format(fname))
-            file = open(fname, 'r')
-            self.tracked_agent = pickle.load(file)
-            file.close()
-        else:
-            success = False
-        if not success:
-            self.log_print('Some of the results could not be loaded.')
+        if self.use_KP:
+            fname = '{0}/KP_agent'.format(self.scenario_file())
+            if os.path.isfile(fname):
+                self.log_print('Loading {0}'.format(fname))
+                file = open(fname, 'r')
+                self.KP_agent = pickle.load(file)
+                file.close()
+            else:
+                success = False
+            fname = '{0}/KP_tstep'.format(self.scenario_file())
+            if os.path.isfile(fname):
+                self.log_print('Loading {0}'.format(fname))
+                file = open(fname, 'r')
+                self.KP_tstep = pickle.load(file)
+                file.close()
+            else:
+                success = False
+            fname = '{0}/KP_edges'.format(self.scenario_file())
+            if os.path.isfile(fname):
+                # Load cache
+                self.log_print('Loading {0}'.format(fname))
+                file = open(fname, 'r')
+                self.KP_edges = pickle.load(file)
+                file.close()
+            else:
+                success = False
+        if self.track_list:
+            fname = '{0}/tracked_agent'.format(self.scenario_file())
+            if os.path.isfile(fname):
+                # Load cache
+                self.log_print('Loading {0}'.format(fname))
+                file = open(fname, 'r')
+                self.tracked_agent = pickle.load(file)
+                file.close()
+            if not success:
+                self.log_print('Some of the results could not be loaded.')
         return success
     
     def init_agents(self):
@@ -625,7 +651,7 @@ class Sim:
         '''
         # NOTE: Need to be able to raise error if no destination
         # Determine number of agents that are allowed on a given edge
-        self.EC = [int(settings[self.scenario]['kCap']*area) for area in self.h.EA]
+        self.EC = [int(self.fd.k_max*area) for area in self.h.EA]
         # The following initial state of agents takes time to compute, save to cache
         # --------------------------------------------------------------------------
         if not self.load_agents():
@@ -705,11 +731,11 @@ class Sim:
         # ---------------------------------
         # Density profile counter to record how often
         # each of the agents are in a dense environment
-        self.KP_agent = np.zeros((self.n,fd.bins),dtype=np.int)
+        self.KP_agent = np.zeros((self.n,self.fd.bins),dtype=np.int)
         # Record what the density profile looks like per timestep
         self.KP_tstep = []
         # Cumulative agent presence density map for each edge
-        self.KP_edges = np.zeros((self.h.nedges,fd.bins),dtype=np.int)
+        self.KP_edges = np.zeros((self.h.nedges,self.fd.bins),dtype=np.int)
         # No need to record velocity as well, we can determine that from the density array
         # Time at which destination reached
         self.T = [None]*self.n
@@ -723,7 +749,7 @@ class Sim:
                 ci=self.h.C[this_edge]
                 di=self.h.D[this_edge]
                 density = self.density(this_edge)
-                velocity = fd.velocity(density)
+                velocity = self.fd.velocity(density)
                 self.JT.add_edge(ri,ci,{'weight':di/velocity})
     
     def run_sim(self,video=True,live_video=False,bitrate=4000,fps=20,rerun=False):
@@ -760,14 +786,14 @@ class Sim:
                 cm = plt.cm.get_cmap('Spectral_r')
                 # Initialise the plots
                 if self.agent_marker == 'scatter':
-                    point = axs.scatter(self.P[:,0],self.P[:,1],c=self.K,marker='o',cmap=cm,alpha=0.5,clim=[0.5,fd.kCf],norm=LogNorm(vmin=0.5, vmax=fd.kCf))
+                    point = axs.scatter(self.P[:,0],self.P[:,1],c=self.K,marker='o',cmap=cm,alpha=0.5,clim=[0.5,self.fd.k_lim],norm=LogNorm(vmin=0.5, vmax=self.fd.k_lim))
                 elif self.agent_marker == 'quiver':
-                    point = plt.quiver(self.P[:,0],self.P[:,1],self.U[:,0],self.U[:,1],self.K,cmap=cm,alpha=0.5,clim=[0.5,fd.kCf],norm=LogNorm(vmin=0.5, vmax=fd.kCf))
+                    point = plt.quiver(self.P[:,0],self.P[:,1],self.U[:,0],self.U[:,1],self.K,cmap=cm,alpha=0.5,clim=[0.5,self.fd.k_lim],norm=LogNorm(vmin=0.5, vmax=self.fd.k_lim))
                 agents_text = axs.text(0.02, 0.94, '', transform=axs.transAxes,alpha=0.5,size='large')
                 # Draw colorbar and label
                 divider = make_axes_locatable(plt.gca())
                 cax = divider.append_axes("right", "5%", pad="3%")
-                cb = self.fig.colorbar(point,cax=cax,ticks=fd.bin_mean, format='$%.2f$')
+                cb = self.fig.colorbar(point,cax=cax,ticks=self.fd.bin_mean, format='$%.2f$')
                 cb.set_label("Agent Local Density $m^{-2}$", rotation=90)
                 def sim_update(tstep):
                     ''' Function to get update position of agents.
@@ -776,11 +802,11 @@ class Sim:
                     random.shuffle(self.S)
                     removal = []
                     # Record the density profile for this timestep in this list
-                    this_tstep = [0]*fd.bins
+                    this_tstep = [0]*self.fd.bins
                     for this_agent in self.S:
                         this_edge = self.E[this_agent]
                         this_density = self.density(this_edge)
-                        this_velocity = fd.v_dict[this_density]
+                        this_velocity = self.fd.v_dict[this_density]
                         # Move the agent
                         this_location = self.L[this_agent] + this_velocity
                         di = self.h.D[this_edge]
@@ -833,11 +859,11 @@ class Sim:
                                     # Update this density
                                     this_density = self.density(this_edge)
                                     # If the next edge has vacancy then progress to the next edge
-                                    # if this_density>kMax and random.random()<0.01: # 1% chance of rerouting
+                                    # if this_density>k_lim and random.random()<0.01: # 1% chance of rerouting
                                         # self.log_print('{0} {1} Congestion, rerouting...'.format(this_density, edge))
                                         # path=nx.single_source_dijkstra_path(JT,dest)
                                     # Calculate new velocity
-                                    this_velocity = fd.v_dict[this_density]
+                                    this_velocity = self.fd.v_dict[this_density]
                                     # Assign the new distance taking into account the remaining time
                                     this_location = this_velocity * residual_time
                                     # Calculate new progress
@@ -870,7 +896,7 @@ class Sim:
                         if self.use_JT:
                             self.JT[ci][ri]['weight']=di/this_velocity
                         # Get the bin id in which to add the agent
-                        bin = fd.which_bin(this_density)
+                        bin = self.fd.which_bin(this_density)
                         # This is the density profile for a given agent over all timestep
                         self.KP_agent[this_agent,bin] = self.KP_agent[this_agent,bin] + 1
                         # This is the density profile for all agents per time step
@@ -959,7 +985,7 @@ class Sim:
                 print 'Execution took {:0.3f} seconds.'.format(self.execution_time)
 
                 self.save_results()
-                success += 1
+            success += 1
         return success
 
     def dist2exit(self,agent):
@@ -976,10 +1002,10 @@ class Sim:
             If df = 0, returns 0 density so that we can determine free flow evacuation time.
         '''
         if self.blocked[edge]:
-            k = fd.kMax
+            k = self.fd.k_max
         else:
             k = settings[self.scenario]['df']*(self.N[edge]+add)/self.h.EA[edge]
-        return round(k,fd.dp)
+        return round(k,self.fd.dp)
     
     def prob_round(self,edge):
         ''' Function that rounds by using probability based on decimal places of the number.
@@ -1074,7 +1100,7 @@ class Sim:
         '''
         average = []
         for kp in self.KP_edges:
-            val = sum([fd.bin_mean[i]*kp[i] for i in range(fd.bins)])
+            val = sum([self.fd.bin_mean[i]*kp[i] for i in range(self.fd.bins)])
             if val > 0:
                 val = val/sum(kp)
             average.append(val)
@@ -1098,7 +1124,7 @@ class Sim:
         '''
         average = []
         for kp in self.KP_agent:
-            val = sum([fd.bin_mean[i]*kp[i] for i in range(fd.bins)])
+            val = sum([self.fd.bin_mean[i]*kp[i] for i in range(self.fd.bins)])
             if val > 0:
                 val = val/sum(kp)
             average.append(val)
@@ -1109,7 +1135,7 @@ class Sim:
         '''
         average = []
         for kp in self.KP_tstep:
-            val = sum([fd.bin_mean[i]*kp[i] for i in range(fd.bins)])
+            val = sum([self.fd.bin_mean[i]*kp[i] for i in range(self.fd.bins)])
             if val > 0:
                 val = val/sum(kp)
             average.append(val)
