@@ -1,3 +1,6 @@
+import sys
+sys.path.append('core')
+
 import abm
 import os
 import time
@@ -25,6 +28,60 @@ logger.addHandler(handler)
 # eg. when doing just one place, do [10:11] rather than just [10]
 places = abm.Places(sim).names
 
+# ['Telford and Wrekin',
+#  'Caerphilly',
+#  'City of Edinburgh',
+#  'York',
+#  'Renfrewshire',
+#  'Medway',
+#  'Bridgend',
+#  'Redcar and Cleveland',
+#  'City of Bristol',
+#  'Swindon',
+#  'Newport',
+#  'Yell',
+#  'Stockton-on-Tees',
+#  'North East Lincolnshire',
+#  'Windsor and Maidenhead',
+#  'Darlington',
+#  'Aberdeen City',
+#  'Thurrock',
+#  'West Dunbartonshire',
+#  'Warrington',
+#  'Wokingham',
+#  'Lewes',
+#  'North Warwickshire',
+#  'Rotherham',
+#  'Warwick District',
+#  'North West Leicestershire',
+#  'Charnwood',
+#  'North East Derbyshire',
+#  'Guildford',
+#  'Birmingham',
+#  'Amber Valley',
+#  'Rochford',
+#  'Mole Valley',
+#  'Wirral District',
+#  'Tandridge',
+#  'Tonbridge and Malling',
+#  'Kettering',
+#  'Arun',
+#  'Bromsgrove',
+#  'Hart',
+#  'Dacorum',
+#  'Newcastle-under-Lyme',
+#  'Sefton',
+#  'Chorley',
+#  'Chiltern',
+#  'Wyre Forest',
+#  'Wigan',
+#  'Fylde',
+#  'Great Yarmouth',
+#  'Solihull']
+
+# Iterate through these scenarios
+scenarios = ['k5','k6','k7']
+
 # Save each exit to a different file
 def job(place):
     '''
@@ -44,7 +101,8 @@ def job(place):
 
     try:
         s = abm.Sim(sim=sim,place=place)
-        return s.run_sim(fps=20,bitrate=4000,video=True,live_video=False)
+        s.scenarios = scenarios
+        return s.run_sim(fps=20,bitrate=2000,video=True,live_video=False)
     except KeyboardInterrupt:
         print 'KeyboardInterrupt caught in child...'
     except Exception as e:
@@ -54,13 +112,14 @@ def job(place):
         print e
         return 0
 
+# job(places[0])
+
 import multiprocessing
 
 def start_process():
     '''
     Multiprocessing calls this before starting.
     '''
-
     print 'Starting', multiprocessing.current_process().name
 
 # Start the multiprocessing unit
@@ -84,8 +143,8 @@ if __name__ == '__main__':
 print '----------------------------------------------------------------------'
 print 'Summary (City, Scenarios complete)'
 print '----------------------------------------------------------------------'
-for place, scenarios in zip(places, pool_outputs):
-    if scenarios == 4:
-        print '{0}: {1} scenario(s)'.format(place, scenarios)
+for place, success in zip(places, pool_outputs):
+    if success == len(scenarios):
+        print '{0}: {1} successful scenario(s)'.format(place, success)
     else:
-        print 'INCOMPLETE: {0}: {1} scenario(s)'.format(place, scenarios)
+        print '  INCOMPLETE: {0}: {1} successful scenario(s)'.format(place, success)
