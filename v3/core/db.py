@@ -68,6 +68,7 @@ class Query:
     
     def connect(self):
         try:
+            print str.join(' ',[k+'='+config[k] for k in config])
             con = psycopg2.connect(str.join(' ',[k+'='+config[k] for k in config]))
             self.cur = con.cursor()
         except Exception, e:
@@ -80,13 +81,13 @@ class Query:
                 self.cur.execute(self.SQL)
                 print self.SQL
             except Exception, e:
-                print e.pgerror
+                print e
         else:
             try:
                 self.cur.execute(self.SQL,self.data)
                 print self.cur.mogrify(self.SQL,self.data)
             except Exception, e:
-                print e.pgerror
+                print e
         
         self.result = self.cur.fetchall()
     
