@@ -18,3 +18,6 @@ _tmp*
 v4/sample
 *.gz
 *.zip
+v4/figs
+v3/figs
+*.tgz
