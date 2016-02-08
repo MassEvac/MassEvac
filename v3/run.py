@@ -80,7 +80,8 @@ places = abm.Places(sim).names
 #  'Solihull']
 
 # Iterate through these scenarios
-scenarios = ['k5','k6','k7']
+# scenarios = ['k5','k6','k7']
+scenarios = ['k5-invdistprob']
 
 # Save each exit to a different file
 def job(place):
@@ -113,38 +114,39 @@ def job(place):
         return 0
 
 # job(places[0])
+job('City of Bristol')
 
-import multiprocessing
+# import multiprocessing
 
-def start_process():
-    '''
-    Multiprocessing calls this before starting.
-    '''
-    print 'Starting', multiprocessing.current_process().name
+# def start_process():
+#     '''
+#     Multiprocessing calls this before starting.
+#     '''
+#     print 'Starting', multiprocessing.current_process().name
 
-# Start the multiprocessing unit
-if __name__ == '__main__':
-    pool_size = multiprocessing.cpu_count() * 1
+# # Start the multiprocessing unit
+# if __name__ == '__main__':
+#     pool_size = multiprocessing.cpu_count() * 1
 
-    try:
-        pool = multiprocessing.Pool(processes=pool_size,
-                                    initializer=start_process,
-                                    )
-        pool_outputs = pool.map(job, places)
-        pool.close() # no more tasks
-        pool.join()  # wrap up current task
-        print 'Pool closed and joined normally.'
-    except KeyboardInterrupt:
-        print 'KeyboardInterrupt caught in parent...'
-        pool.terminate()
-        pool.join()  # wrap up current task
-        print 'Pool terminated and joined due to an exception'
+#     try:
+#         pool = multiprocessing.Pool(processes=pool_size,
+#                                     initializer=start_process,
+#                                     )
+#         pool_outputs = pool.map(job, places)
+#         pool.close() # no more tasks
+#         pool.join()  # wrap up current task
+#         print 'Pool closed and joined normally.'
+#     except KeyboardInterrupt:
+#         print 'KeyboardInterrupt caught in parent...'
+#         pool.terminate()
+#         pool.join()  # wrap up current task
+#         print 'Pool terminated and joined due to an exception'
 
-print '----------------------------------------------------------------------'
-print 'Summary (City, Scenarios complete)'
-print '----------------------------------------------------------------------'
-for place, success in zip(places, pool_outputs):
-    if success == len(scenarios):
-        print '{0}: {1} successful scenario(s)'.format(place, success)
-    else:
-        print '  INCOMPLETE: {0}: {1} successful scenario(s)'.format(place, success)
+# print '----------------------------------------------------------------------'
+# print 'Summary (City, Scenarios complete)'
+# print '----------------------------------------------------------------------'
+# for place, success in zip(places, pool_outputs):
+#     if success == len(scenarios):
+#         print '{0}: {1} successful scenario(s)'.format(place, success)
+#     else:
+#         print '  INCOMPLETE: {0}: {1} successful scenario(s)'.format(place, success)

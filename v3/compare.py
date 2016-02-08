@@ -1,0 +1,12 @@
+import numpy as np
+s9 = abm.Sim('bristol25-k9','Stockton-on-Tees')
+s5 = abm.Sim('bristol25-k5','Stockton-on-Tees')
+s9.init_scenario('ia')
+s5.init_scenario('ia')
+s9.load_agents()
+s5.load_agents()
+print np.corrcoef(s9.L,s5.L)
+s9.load_results()
+s5.load_results()
+print np.corrcoef(s9.T,s5.T)
+plt.show()

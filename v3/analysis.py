@@ -33,10 +33,10 @@ logger.addHandler(handler)
 
 places = abm.Places(sim).names
 # Use this to test a few palces
-places = ['Telford and Wrekin']
+# places = ['Telford and Wrekin']
 
 # These are the scenarios we want to process
-scenarios = ['k5','k6','k7']
+scenarios = ['k5','k5-original','k6','k7','k9']
 
 # File naming convention for quick retrieval for analysis
 # common file looks like
@@ -209,7 +209,7 @@ def action(place):
         return 'available.'
 
 # Call this and disable multiprocessing to debug issues
-action('Telford and Wrekin')
+# action(places[0])
 
 #############################################################
 # Start multi processing
@@ -322,6 +322,10 @@ def load(scenario,city,extension):
     file.close()
     return r
 
+# Composite labels
+common_lab.remove('X')
+lab = common_lab + unique_lab
+
 def retrieve(scenario):
     ''' Returns R, X and Xi for an input scenario
     '''
@@ -343,7 +347,7 @@ def retrieve(scenario):
         c = load('_',city,'C')
         # Load variables unique to the scenario
         r = load(scenario,city,'R')
-        
+
         X[city] = c['X']
         Xi[city] = range(this,this+len(X[city]))
         this = this+len(X[city])

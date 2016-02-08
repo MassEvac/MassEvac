@@ -12,7 +12,6 @@ import numpy as np
 import networkx as nx
 import scipy.stats as ss
 import matplotlib.pyplot as plt
-from sympy import *
 from matplotlib import mlab, animation
 from IPython.display import HTML
 from shapely.geometry import mapping, LineString
@@ -219,30 +218,55 @@ class FundamentalDiagram:
             Scenario label
 '''
 settings = {
+    'k5-invdistprob':{ # Density limit of 5, uses inverse distance probability
+        'path':'invdistprob',
+        'df':1.0,
+        'k_vmin':5,
+        'k_lim':5,
+        'label':'With Interaction, No Intervention',
+    },
     'k5':{ # Density limit of 5
+        'path':'nearest',
         'df':1.0,
         'k_vmin':5,        
         'k_lim':5,        
         'label':'With Interaction, No Intervention',
     },
+    'k5-ff':{ # Density limit of 5 but free flow
+        'path':'nearest',
+        'df':0.0,
+        'k_vmin':5,
+        'k_lim':5,
+        'label':'Free flow',
+    },    
+    'k5-original':{ # Density limit of 5
+        'path':'nearest',
+        'df':1.0,
+        'k_vmin':5,        
+        'k_lim':5,        
+        'label':'With Interaction, No Intervention',
+    },    
     'k6':{ # Density limit of 6
+        'path':'nearest',
         'df':1.0,
         'k_vmin':5,        
         'k_lim':6,        
         'label':'With Interaction, No Intervention',
     },
     'k7':{ # Density limit of 7
+        'path':'nearest',
         'df':1.0,
         'k_vmin':5,        
         'k_lim':7,
         'label':'With Interaction, No Intervention',
     },        
-    'k5-ff':{ # Density limit of 5 but free flow
-        'df':0.0,
+    'k9':{ # Density limit of 9
+        'path':'nearest',
+        'df':1.0,
         'k_vmin':5,
-        'k_lim':5,
-        'label':'Free flow',
-    },
+        'k_lim':9,
+        'label':'With Interaction, No Intervention',
+    },         
 }
 
 class Places:
@@ -441,7 +465,7 @@ class Sim:
     def save_agents(self):
         ''' Save the agents to cache files.
         '''
-        fname = '{0}/agents'.format(self.agents_file())
+        fname = '{}/agents.{}'.format(self.agents_file(),settings[self.scenario]['path'])
         self.log_print('Writing {0}'.format(fname))
         file = open(fname, 'w')
         pickle.dump([self.P, self.L, self.E, self.X, self.N], file)
@@ -456,7 +480,7 @@ class Sim:
                     True  --- if successful
                     False --- if unsuccessful
         '''    
-        fname = '{0}/agents'.format(self.agents_file())
+        fname = '{}/agents.{}'.format(self.agents_file(),settings[self.scenario]['path'])
         if os.path.isfile(fname) and not self.fresh == True:
             # Load cache
             self.log_print('Loading {0}'.format(fname))
@@ -525,9 +549,12 @@ class Sim:
     def load_agent_meta(self):
         ''' Cache of meta data that takes a long time to calculate.
         '''
-        self.load_agents()
+        try:
+            self.X
+        except AttributeError:
+            self.load_agents()    
         # Calculate distance to exit for every agent
-        fname = '{0}/DX'.format(self.agents_file())
+        fname = '{}/DX.{}'.format(self.agents_file(),settings[self.scenario][path])
         if os.path.isfile(fname) and not self.fresh == True:
             self.log_print('Loading {0}'.format(fname))
             file = open(fname, 'r')
@@ -692,10 +719,21 @@ class Sim:
                         # Determine the node that the agent is travelling to
                         ci = self.h.C[this_edge]
                         try:
-                            # Find the nearest destination, if unresolvable then throw KeyError
-                            val, idx = min((val, idx) for (idx, val) in enumerate([self.h.route_length[destin][ci] for destin in self.h.destins]))
-                            # Assign destination to the agent
-                            self.X[this_agent] = self.h.destins[idx]
+                            # Cost function approach
+                            # ----------------------
+                            if settings[self.scenario]['path'] == 'invdistprob':
+                                prob = np.array([1/(self.h.route_length[destin][ci]) for destin in self.h.destins])**1
+                                self.X[this_agent] = np.random.choice(self.h.destins,p=prob/sum(prob))
+                                if this_agent < 100:
+                                    print self.X[this_agent]
+                            elif settings[self.scenario]['path'] == 'nearest':
+                                # Nearest exit approach
+                                # ---------------------
+                                # Find the nearest destination, if unresolvable then throw KeyError
+                                val, idx = min([(val, idx) for (idx, val) in enumerate([self.h.route_length[destin][ci] for destin in self.h.destins])])                            
+                                # Assign destination to the agent
+                                self.X[this_agent] = self.h.destins[idx]
+
                             # Agent is on this edge
                             self.E[this_agent] = this_edge
                             # Randomly assign a position of the agent on the edge
@@ -982,7 +1020,7 @@ class Sim:
                 # Convert this to a numpy array as it will be easier to work with as opposed to a list!
                 self.KP_tstep = np.array(self.KP_tstep,dtype=np.int)
                 self.execution_time = time.time()-start_time
-                print 'Execution took {:0.3f} seconds.'.format(self.execution_time)
+                self.log_print('Execution took {:0.3f} seconds.'.format(self.execution_time))
 
                 self.save_results()
             success += 1

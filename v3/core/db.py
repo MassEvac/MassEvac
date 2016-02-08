@@ -9,9 +9,11 @@ import json
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
+import socket
 from matplotlib import mlab
 from scipy.misc import imread
 from shapely.geometry import LineString,Point,mapping
+
 
 ''' Load the database configuration.
 '''
@@ -61,9 +63,9 @@ class Query:
     '''
 
     def __init__(self,SQL,data=None):
-        self.connect()
         self.SQL = SQL
         self.data = data
+        self.connect()
         self.query()
     
     def connect(self):
@@ -72,6 +74,7 @@ class Query:
             con = psycopg2.connect(str.join(' ',[k+'='+config[k] for k in config]))
             self.cur = con.cursor()
         except Exception, e:
+            print self.SQL
             print 'Oh dear! Check .dbconfig file or the query!'
             print e
     
@@ -422,6 +425,51 @@ class Highway:
                 pickle.dump(self.hiclass, file)
         self.R,self.C,self.D,self.W = zip(*[(ri,ci,di['distance'],self.width[self.hiclass[di['highway']]]) for ri,ci,di in self.edges])
     
+    def init_SG(self,subgraph='nearest'):
+        self.init_EM()
+        self.init_EA()
+
+        # Makes a list of subgraph based on nearest exits
+        if subgraph == 'nearest':
+            # Enlist subgraph nodes from edge list
+            self.SG_nodes = {}
+
+            # Loop through all the edges
+            for u,v,d in self.G.edges_iter(data=True):
+                nearest_x = np.nan
+                nearest_du = np.inf
+                nearest_dv = np.inf
+                for x in self.destins:
+                    try:
+                        # Distance to exit is defined at distance from
+                        # midpoint of an edge to the nearest exit
+                        dv = self.route_length[x][v] 
+                        du = dv + d['distance']
+                        if du < nearest_du:
+                            nearest_x = x
+                            nearest_du = du
+                            nearest_dv = dv
+                    except KeyError:
+                        pass
+
+                if not np.isnan(nearest_x):
+                    self.G[u][v]['nearest_x'] = nearest_x
+                    self.G[u][v]['nearest_du'] = nearest_du
+                    self.G[u][v]['nearest_dv'] = nearest_dv
+                    try:
+                        self.SG_nodes[nearest_x].extend([u,v])
+                    except KeyError:
+                        self.SG_nodes[nearest_x] = [nearest_x,u,v]
+
+            # May want to cache 'SG_nodes' at this point
+            # Make the subgraphs unique
+            self.SG = {}
+            for x in self.destins:
+                # remove duplicates
+                self.SG_nodes[x] = np.unique(self.SG_nodes[x])
+                # create subgraphs
+                self.SG[x] = self.G.subgraph(self.SG_nodes[x])
+
     def load_edges(self):
         ''' Load edges from the cache file.'''
         fname = '{0}/highway.edges.gz'.format(folder(self.place))
@@ -587,7 +635,7 @@ class Highway:
         if os.path.isfile(fname) and not self.fresh == True:
             print '{0}: Loading {1}'.format(self.place,fname)
             with open(fname, 'r') as file:
-                self.destins = pickle.load(file)
+                self.destins = list(set(pickle.load(file)))
         else:
             print '{0}: Processing {1}'.format(self.place,fname)
             SQL = """SELECT l.way,l.osm_id,l.highway,l.oneway FROM planet_osm_line AS l,
@@ -627,6 +675,7 @@ class Highway:
                             pass
             print '{0}: Writing {1}'.format(self.place,fname)
             with open(fname, 'w') as file:
+                self.destins = list(set(pickle.load(file)))
                 pickle.dump(self.destins, file)
         # Create a dictionary map of destination node number to a numeric value
         self.destin_dict = dict([(d,i) for i,d in enumerate(self.destins)])
@@ -855,7 +904,7 @@ class Highway:
         print '{0}: Loading {1}'.format(self.place,fname)
         return imread(fname)
     
-    def fig_highway(self,theme='default'):
+    def fig_highway(self,destin=None,theme='default'):
         ''' Draws the network layout of the graph.
         
             Parameters
@@ -867,9 +916,14 @@ class Highway:
                 fig: figure
                     Figure of the network graph.
         '''
-        fname = self.mapname.format(theme)
+        if destin == None:
+            fname = self.mapname.format(theme)
+            G = self.G
+        else:
+            fname = self.mapname.format(theme+'-'+str(destin))
+            G = self.SG[destin]
+
         print '{0}: Processing {1}'.format(self.place,fname)
-        G = self.G
         edge_dict = {'default':{
                                  0:{'alpha':1.00,'edge_color':'LightSkyBlue'},
                                  1:{'alpha':1.00,'edge_color':'DarkOliveGreen'},
@@ -892,7 +946,7 @@ class Highway:
         # Classify roads into big and small roads for the purpose of drawing the map
         edge_list = {}
         for i in range(len(edge_dict[theme])):
-            edge_list[i]=[(u,v) for (u,v,d) in self.edges if self.hiclass[d['highway']] == i]
+            edge_list[i]=[(u,v) for (u,v,d) in G.edges(data=True) if self.hiclass[d['highway']] == i]
         # Generate the figure
         fig = plt.figure()
         ax = plt.axes(xlim=(self.l, self.r), ylim=(self.b, self.t))
@@ -902,12 +956,17 @@ class Highway:
         # Draw the boundary of the place
         x,y=self.boundary.exterior.xy
         plt.plot(x,y,alpha=0.5)
-        try:
-            self.destins
-        except AttributeError:
-            self.init_destins()            
         # Mark the destination nodes if they are available
-        plt.scatter(self.lon[self.destins],self.lat[self.destins],s=200,c='g',alpha=0.5,marker='o')
+        if destin:
+            destins = [destin]
+        else:
+            try:
+                self.destins
+            except AttributeError:
+                self.init_destins()
+            destins = self.destins
+        plt.scatter(self.lon[destins],self.lat[destins],s=200,c='g',alpha=0.5,marker='o')
+        # Write image to file        
         print '{0}: Writing {1}'.format(self.place,fname)
         extent = ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
         plt.savefig(fname, bbox_inches=extent, dpi=300)
