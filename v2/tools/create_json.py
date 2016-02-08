@@ -4,6 +4,7 @@ import time
 import logging 
 import cities
 import sys
+import collections
 
 sim = 'density'
 logging.basicConfig(filename='logs/{0}.log'.format(sim),level=logging.DEBUG)
@@ -88,6 +89,6 @@ for city, info in zip(my_cities,pool_outputs):
 
 import json
 
-with open('file.json.txt', 'w') as outfile:
+with open('file.json', 'w') as outfile:
   json.dump(data, outfile,indent=True)
 
