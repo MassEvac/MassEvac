@@ -65,13 +65,13 @@ def monkey_patch_init(self, fig, func, frames=None, init_func=None, fargs=None,
 # Patch the animation function
 animation.FuncAnimation.__init__ = monkey_patch_init        
 
-# Best estimate of population multiplier
-# Assumes that population growth spread is uniform across the UK\
-p2000 = 58.459
-# Source: http://en.wikipedia.org/wiki/List_of_countries_by_population_in_2000
-p2015 = 63.935
-# Source: http://en.wikipedia.org/wiki/List_of_countries_by_future_population_(Medium_variant)
-p_factor = p2015/p2000
+# # Best estimate of population multiplier
+# # Assumes that population growth spread is uniform across the UK\
+# p2000 = 58.459
+# # Source: http://en.wikipedia.org/wiki/List_of_countries_by_population_in_2000
+# p2015 = 63.935
+# # Source: http://en.wikipedia.org/wiki/List_of_countries_by_future_population_(Medium_variant)
+# p_factor = p2015/p2000
 
 class FundamentalDiagram:
     def __init__(self,speedup,k_vmin,k_lim):
@@ -239,13 +239,6 @@ settings = {
         'k_lim':5,
         'label':'Free flow',
     },    
-    'k5-original':{ # Density limit of 5
-        'path':'nearest',
-        'df':1.0,
-        'k_vmin':5,        
-        'k_lim':5,        
-        'label':'With Interaction, No Intervention',
-    },    
     'k6':{ # Density limit of 6
         'path':'nearest',
         'df':1.0,
@@ -259,14 +252,7 @@ settings = {
         'k_vmin':5,        
         'k_lim':7,
         'label':'With Interaction, No Intervention',
-    },        
-    'k9':{ # Density limit of 9
-        'path':'nearest',
-        'df':1.0,
-        'k_vmin':5,
-        'k_lim':9,
-        'label':'With Interaction, No Intervention',
-    },         
+    },
 }
 
 class Places:

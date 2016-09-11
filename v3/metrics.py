@@ -244,7 +244,6 @@ def summary(h, destin):
     # Centralities
     # ------------
 
-
     def _means(key,all):
         return [
                 ('mean_{}'.format(key),np.mean(all.values())),

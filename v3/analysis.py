@@ -1,7 +1,4 @@
-import sys
-sys.path.append('core')
-import abm
-reload(abm)
+from init import abm
 
 import os
 import gzip
@@ -62,7 +59,7 @@ common_lab = ['N','W','X','Dmax','Ds','Dm','D50','D90','T90f','Qp']
 unique_lab = ['Tmax','Tmaxf','Ts','Tm','T90','T90f1i','T90f2i','T90b','Qmax','Qs','Qm','Qmf','Qmf1','Qmf2','Qmb','Q50','Q50f','Q50f1','Q50f2','Q50b','Q90','Q90f','Q90f1','Q90f2','Q90b']
 
 # Process pool output
-def action(place):
+def job(place):
     # Check if all scenarios have been processed
     complete = True
     for scenario in scenarios:
@@ -83,7 +80,8 @@ def action(place):
 
         # Output common in all files
         X = list(set(s.h.destins))
-        N,W = [],[]
+        N = [] # Number of agents per destin
+        W = [] # Width per destin
         for x in X:
             # There has to be a width if a destin node exists
             w = s.h.destin_width_dict[x]
@@ -211,36 +209,18 @@ def action(place):
 # Call this and disable multiprocessing to debug issues
 # action(places[0])
 
-#############################################################
+# ---------------------------------------------------------
 # Start multi processing
-#############################################################    
-def start_process():
-    print 'Starting', multiprocessing.current_process().name
 
 if __name__ == '__main__':
-    pool_size = multiprocessing.cpu_count() * 1
+    pool = Pool(processes=cpu_count()) 
+    pool_outputs = pool.map(job, places)    
 
-    try:
-        pool = multiprocessing.Pool(processes=pool_size,
-                                    initializer=start_process,
-                                    )
-        pool_outputs = pool.map(action, places)
-        pool.close() # no more tasks
-        pool.join()  # wrap up current task
-        print 'Pool closed and joined normally.'
-    except KeyboardInterrupt:
-        print 'KeyboardInterrupt caught in parent...'
-        pool.terminate()
-        pool.join()  # wrap up current task
-        print 'Pool terminated and joined due to an exception'
+    # Show results of the processing
+    for place,output in zip(places,pool_outputs):
+        print place,output
 
-# Show results of the processing
-for place,output in zip(places,pool_outputs):
-    print place,output
-#############################################################    
-# End multi processing    
-#############################################################    
-
+# ---------------------------------------------------------
 # Pretty label
 pl = {
     'N':'N',
@@ -316,25 +296,25 @@ unit = {
     'Qp':'[ped/(ms)]',
      }
 
+# Composite labels
+common_lab.remove('X')
+lab = common_lab + unique_lab
+
+# ---------------------------------------------------------
+# Module to load from file
+
 def load(scenario,city,extension):
     file = open('{}/{}.{}.pickle'.format(fname[scenario],city,extension), 'r')
     r = pickle.load(file)
     file.close()
     return r
 
-# Composite labels
-common_lab.remove('X')
-lab = common_lab + unique_lab
+# ---------------------------------------------------------
+# Retrieve into a dict
 
-def retrieve(scenario):
-    ''' Returns R, X and Xi for an input scenario
-    '''
-    R = {}
+import metrics_subgraph as ms
 
-    # Load constants
-    for l in lab:
-        R[l] = np.array([],float) 
-
+def retrieve_X_Xi():
     X = {} # holds the index of the destination node for the city
     Xi = {} # holds the index of the index of destination node in the list
 
@@ -342,15 +322,48 @@ def retrieve(scenario):
     tot = 0
 
     for city in places:
-        print 'Loading', city
-        # Load common
         c = load('_',city,'C')
+        
         # Load variables unique to the scenario
-        r = load(scenario,city,'R')
-
         X[city] = c['X']
         Xi[city] = range(this,this+len(X[city]))
+
         this = this+len(X[city])
+
+    return X,Xi
+
+def retrieve_M():
+    M = {}
+    X,Xi = retrieve_X_Xi()
+    for city in places:
+        for x in X[city]:
+            # print x
+            summary = ms.load_json('summary',city,int(x))
+            for key,value in summary.iteritems():
+                try:
+                    M[key] = np.hstack((M[key],value))
+                except KeyError:
+                    M[key] = np.array(value)
+
+    return M
+
+def retrieve_R(scenario):
+    ''' Returns R for an input scenario
+    '''
+    R = {}
+    # Load constants
+    for l in lab:
+        R[l] = np.array([],float) 
+
+    X,Xi = retrieve_X_Xi()
+
+
+    for city in places:
+        print 'Loading', city
+        # Load common
+
+        c = load('_',city,'C')
+        r = load(scenario,city,'R')
 
         for l in common_lab:
             R[l] = np.hstack((R[l], c[l]))
@@ -358,4 +371,4 @@ def retrieve(scenario):
         for l in unique_lab:
             R[l] = np.hstack((R[l], r[l]))
 
-    return R,X,Xi
+    return R

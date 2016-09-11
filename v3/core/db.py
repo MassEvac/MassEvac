@@ -675,7 +675,6 @@ class Highway:
                             pass
             print '{0}: Writing {1}'.format(self.place,fname)
             with open(fname, 'w') as file:
-                self.destins = list(set(pickle.load(file)))
                 pickle.dump(self.destins, file)
         # Create a dictionary map of destination node number to a numeric value
         self.destin_dict = dict([(d,i) for i,d in enumerate(self.destins)])
@@ -693,7 +692,6 @@ class Highway:
             self.destin_width_dict[destin] = w
             self.destin_width.append(w)
         
-    
     def init_route(self):
         ''' Initialise route and route length dictionaries
             

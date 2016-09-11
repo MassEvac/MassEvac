@@ -1,7 +1,6 @@
-import sys
-sys.path.append('core')
+from init import db,abm
+reload(db),reload(abm)
 
-import abm
 import os
 import time
 import logging

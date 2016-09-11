@@ -1,0 +1,11 @@
+# Rename subfolders - NOT REALLY
+find . -type d -execdir rename -n 's/old/new/' '{}' \;
+
+# Rename subfolders
+find . -type d -execdir rename 's/old/new/' '{}' \;
+
+It will probably say foldername:  No such file or directory but it works. IDK why? Anyone care to tell?
+
+# Find files called 'T' where there is also 'k7' mentioned in the containing subfolders
+find ./ -name 'T' | grep 'k7/' | wc -l
+
