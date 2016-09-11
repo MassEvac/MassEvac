@@ -3,30 +3,27 @@ import db
 import pdb
 import pickle
 import os
+import pdb
 import random
 import math
 import hashlib
 import six
 import time
+import pandas
 import logging
 import shutil
+import shelve
 import gzip
 import numpy as np
 import networkx as nx
 import scipy.stats as ss
 import matplotlib.pyplot as plt
+from operator import itemgetter
 from matplotlib import animation
+from collections import deque
 from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
-
-# Best estimate of population multiplier
-# Assumes that population growth spread is uniform across the UK\
-p2000 = 58.459
-# Source: http://en.wikipedia.org/wiki/List_of_countries_by_population_in_2000
-p2015 = 63.935
-# Source: http://en.wikipedia.org/wiki/List_of_countries_by_future_population_(Medium_variant)
-p_factor = p2015/p2000
 
 class FundamentalDiagram:
     def __init__(self,speedup,k_vmin,k_lim):
@@ -66,6 +63,8 @@ class FundamentalDiagram:
         # This value CANNOT be looked up in v_dict[k]!
         # Obtain the speedup factor
         self.speedup = speedup
+        # Sped up velocity
+        self.v_ff_spedup = self.v_ff * speedup
         # Number of decimal places in the velocity lookup dictionary v_dict[k]
         self.dp = 4
         # Precompute results - 14x faster to use dict
@@ -79,7 +78,7 @@ class FundamentalDiagram:
         
     def precomputation(self):
         # Create a list of density
-        self.k = [float(i)/10**self.dp for i in range(int(self.k_lim*10**self.dp))]
+        self.k = [float(i)/10**self.dp for i in range(int(self.k_lim*10**self.dp)+1)]
         # Maximum density that can be looked up
         self.k_max = max(self.k)
         # Create a list of velocity
@@ -88,6 +87,8 @@ class FundamentalDiagram:
         self.q = [v*k for v,k in zip(self.v,self.k)]
         # Velocity lookup dictionary
         self.v_dict = dict(zip(self.k,self.v))
+        # Flow lookup dictionary
+        self.q_dict = dict(zip(self.k,self.q))
         # Optimum density where flow is maximum
         self.k_opt = self.k[self.q.index(max(self.q))]
 
@@ -147,10 +148,6 @@ class FundamentalDiagram:
         plt.savefig('figs/fd-kvmin-{}-klim-{}.pdf'.format(self.k_vmin,self.k_lim))
         return fig
 
-# Import fundamental diagram
-fd = FundamentalDiagram(speedup=60,k_vmin=4.4,k_lim=9.0)
-fd.figure()
-
 ''' Scenario Definitions
     --------------------
         ff
@@ -163,14 +160,62 @@ fd.figure()
             Scenario label
 '''
 settings = {
-    'ia':{
+    'k5-idp':{ # Density limit of 5, uses inverse distance probability
+        'path':'invdistprob',
         'df':1.0,
+        'k_vmin':5,
+        'k_lim':5,
         'label':'With Interaction, No Intervention',
     },
-    'ff':{
-        'df':0.0,
-        'label':'Free flow',
+    'k6-idp':{ # Density limit of 5, uses inverse distance probability
+        'path':'invdistprob',
+        'df':1.0,
+        'k_vmin':5,
+        'k_lim':6,
+        'label':'With Interaction, No Intervention',
     },
+    'k7-idp':{ # Density limit of 5, uses inverse distance probability
+        'path':'invdistprob',
+        'df':1.0,
+        'k_vmin':5,
+        'k_lim':7,
+        'label':'With Interaction, No Intervention',
+    },
+    'k5':{ # Density limit of 5
+        'path':'nearest',
+        'df':1.0,
+        'k_vmin':5,        
+        'k_lim':5,        
+        'label':'With Interaction, No Intervention',
+    },
+    'k6':{ # Density limit of 6
+        'path':'nearest',
+        'df':1.0,
+        'k_vmin':5,        
+        'k_lim':6,        
+        'label':'With Interaction, No Intervention',
+    },
+    'k7':{ # Density limit of 7
+        'path':'nearest',
+        'df':1.0,
+        'k_vmin':5,        
+        'k_lim':7,
+        'label':'With Interaction, No Intervention',
+    },
+    # 'ff-idp':{ # Density limit of 5 but free flow
+    #     'path':'invdistprob',
+    #     'df':0.0,
+    #     'k_vmin':5, # Not applicable but needs a value
+    #     'k_lim':5, # Not applicable but needs a value
+    #     'label':'Free flow',
+    # },    
+    # 'ff':{ # Density limit of 5 but free flow
+    #     'path':'nearest',
+    #     'df':0.0,
+    #     'k_vmin':5, # Not applicable but needs a value
+    #     'k_lim':5, # Not applicable but needs a value
+    #     'label':'Free flow',
+    # },    
 }
 
 class Places:
@@ -223,31 +268,35 @@ class Places:
         self.osm_id,self.names,self.admin_level,self.area,self.polygon_count = zip(*self.result)
 
 class Agent:
-    def __init__(self,id,initial_edge,initial_position):
+    def __init__(self,id,initial_edge,initial_position,destin):
         ''' Agent class.'''
         self.id = id
         self.initial_edge = initial_edge
         self.initial_position = initial_position
         self.edge = initial_edge
         self.position = initial_position
-        self.in_buffer = False
+        self.destin = destin
     def __repr__(self):
         return '[A{} P{:0.2f} E{}]'.format(self.id,self.position,self.edge)
 
 class Track:
-    def __init__(self,track,G):
+    def __init__(self,track,G,fd):
         self.track = track[:]
         self.cursor = 0
         self.G = G
+        self.fd = fd        
         self.update()
 
     def update(self):
-        self.this_time, self.this_node = self.track[self.cursor]
-        self.that_time, self.that_node = self.track[self.cursor+1]
-        self.this_position = np.array(self.G.node[self.this_node])
-        self.that_position = np.array(self.G.node[self.that_node])
+        self.this_node,self.this_time = self.track[self.cursor]
+        self.that_node,self.that_time = self.track[self.cursor+1]
+        self.this_position = np.array(self.G.node[self.this_node]['pos'])
+        self.that_position = np.array(self.G.node[self.that_node]['pos'])            
         self.velocity = (self.that_position-self.this_position)/(self.that_time-self.this_time)
-        self.speed = self.G[self.this_node][self.that_node]['distance']/(self.that_time-self.this_time)/fd.speedup
+        try:
+            self.speed = self.G[self.this_node][self.that_node]['distance']/(self.that_time-self.this_time)/self.fd.speedup
+        except ZeroDivisionError:
+            self.speed = self.fd.v_ff
 
     def position(self,time):
         while True:
@@ -270,7 +319,7 @@ class Track:
             self.update()
 
 class Sim:
-    def __init__(self,sim,place,fresh=False):
+    def __init__(self,sim,place,n=None,graph='lite',fresh=False,fresh_db=False,speedup=1,save_route=True):
         ''' Queries the population raster table on PostgreSQL database.
         
             Inputs
@@ -287,44 +336,28 @@ class Sim:
         self.sim = sim
         self.place = str(place)
         self.fresh = fresh
+        self.fresh_db = fresh_db
+        self.speedup = speedup
         # Current scenario
         self.scenario = None
         # List of scenarios available
         self.scenarios = settings.keys()
-        # Folder to store the simulation and logging folder
-        self.folder = 'abm/{0}/{1}'.format(self.sim,self.place)
-        if not os.path.isdir(self.folder):
-            os.makedirs(self.folder)
-        self.log_folder = '{0}/logs'.format(self.folder)
-        if not os.path.isdir(self.log_folder):
-            os.makedirs(self.log_folder)
-        # Name of log file
-        self.log_file = '{0}/{1}.log'.format(self.log_folder,time.ctime())
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
-        # create a file handler
-        handler = logging.FileHandler(self.log_file)
-        handler.setLevel(logging.INFO)
-        # create a logging format
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
-        # add the handlers to the logger
-        self.logger.addHandler(handler)
         # Place Initialisation
         # --------------------
         # Init highway
-        self.h = db.Highway(place,fresh=self.fresh)
+        self.h = db.Highway(place,graph=graph,fresh=self.fresh_db,save_route=save_route)
         # Mark the blocked edges, If True, reduces the agent velocity to vMin on that edge (doesn't affect edge capacity)
         for u,v in self.h.G.edges_iter():
             self.h.G[u][v]['blocked'] = False
         # Agent Population Dependent Initialisation
         # -----------------------------------------
         # Init population
-        self.p = db.Population(place,fresh=self.fresh)
-        # If the number of agents is not defined, determine the population by multiplying the 2000 population by p_factor
-        self.n = int(sum(self.p.pop) * p_factor)
-        # Use buffer
-        self.use_buffer = False
+        if n:
+            self.n = n            
+        else:
+            if place:
+                # If the number of agents is not defined, determine the population by multiplying the 2000 population by p_factor
+                self.n = int(round(sum(self.h.pdb.pop)))
         
     def destin_hash(self):
         ''' Generate a hash for the list of destins.
@@ -354,6 +387,31 @@ class Sim:
         ''' Set the current scenario to the input scenario label.
         '''
         self.scenario = scenario
+
+        # Folder to store the simulation and logging folder
+        self.folder = 'abm/{}/{}'.format(self.sim,self.place)
+        if not os.path.isdir(self.folder):
+            os.makedirs(self.folder)
+        self.log_folder = '{}/logs'.format(self.folder)
+        if not os.path.isdir(self.log_folder):
+            os.makedirs(self.log_folder)
+        
+        # Name of log file
+        self.log_file = '{}/{}.{}.txt'.format(self.log_folder,time.ctime(),self.scenario)
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.INFO)
+        
+        # create a file handler
+        handler = logging.FileHandler(self.log_file)
+        handler.setLevel(logging.INFO)
+        
+        # create a logging format
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        
+        # add the handlers to the logger
+        self.logger.addHandler(handler)
+
         self.log_print('Current scenario set to ({0}).'.format(settings[self.scenario]['label']))
 
         # Count the number of blocked
@@ -362,25 +420,21 @@ class Sim:
         # Name the scenario file
         self.scenario_file = '{0}/{1}'.format(self.agents_file,scenario)
 
+        # Load fundamental diagram
+        self.fd = FundamentalDiagram(speedup=self.speedup,k_vmin=settings[self.scenario]['k_vmin'],k_lim=settings[self.scenario]['k_lim'])
+
         # Name the events file
         if not os.path.isdir(self.scenario_file):
             os.makedirs(self.scenario_file)
 
         self.events_file = '{0}/events.txt.gz'.format(self.scenario_file)
     
-    def init_agents(self):
-        ''' Function to initialise agent properties.
-        '''
+    def load_initial_state(self):
+        """The following initial state of agents takes time to compute, save to cache"""
         # NOTE: Need to be able to raise error if no destination
         for u,v,d in self.h.G.edges_iter(data=True):
-            # Determine number of agents that are allowed on a given edge
-            self.h.G[u][v]['capacity'] = int(fd.k_max*d['area'])
-            # Initialise the queue length
-            self.h.G[u][v]['queue_length'] = 0
-            # Initialise the buffer length
-            self.h.G[u][v]['buffer_length'] = 0
-        # The following initial state of agents takes time to compute, save to cache
-        # --------------------------------------------------------------------------
+            # Determine number of agents that are allowed on a given edgelist
+            self.h.G[u][v]['storage_capacity'] = int(self.fd.k_max*d['area'])
         fname = '{0}/initial_state'.format(self.agents_file)
         if os.path.isfile(fname) and not self.fresh:
             self.log_print('Loading {0}'.format(fname))
@@ -396,31 +450,29 @@ class Sim:
                 # Randomly shuffle the order in which edges are called
                 random.shuffle(edgelist)
                 for u,v in edgelist:
+                    # Proceed if all destinations are reachable from this edge
                     try:
-                        # Proceed if nearest_destin is available for the edge
-                        self.h.G[u][v]['nearest_destin']
-                        # This is how many agents are supposed to be on this edge
-                        # Function that rounds by using probability based on decimal places of the number.
-                        # E.g. 6.7 has a 70% probability of being rounded to 7 and 30% probability of being rounded to 6.
-                        x = self.h.G[u][v]['pop_dist']*self.n
-                        x = int(x) + (random.random() < x - int(x))
-                        # Number of agents left to create
-                        total_capacity = self.n - agent_id
-                        if x > total_capacity:
-                            x = total_capacity
-                        # Initialise the edge to 0 if it hasnt been yet
-                        try:
-                            initial_state[(u,v)]
-                        except KeyError:
-                            initial_state[(u,v)] = 0
-                        # Check capacity of the link
-                        link_capacity = self.h.G[u][v]['capacity']-initial_state[(u,v)]
-                        if x > link_capacity:
-                            x = link_capacity
-                        initial_state[(u,v)] += x
-                        agent_id += x
-                        if agent_id==self.n:
-                            break
+                        if len(set(self.h.destins).difference(self.h.G[u][v]['dist2destin'])) == 0:
+                            # This is how many agents are supposed to be on this edge
+                            # Function that rounds by using probability based on decimal places of the number.
+                            # E.g. 6.7 has a 70% probability of being rounded to 7 and 30% probability of being rounded to 6.
+                            x = self.h.G[u][v]['pop_dist']*self.n
+                            x = int(x) + (random.random() < x - int(x))
+                            # Number of agents left to create
+                            total_capacity = self.n - agent_id
+                            x = min(total_capacity,x)
+                            # Initialise the edge to 0 if it hasnt been yet
+                            try:
+                                initial_state[(u,v)]
+                            except KeyError:
+                                initial_state[(u,v)] = 0
+                            # Check capacity of the link
+                            link_capacity = self.h.G[u][v]['storage_capacity']-initial_state[(u,v)]
+                            x = min(link_capacity,x)
+                            initial_state[(u,v)] += x
+                            agent_id += x
+                            if agent_id==self.n:
+                                break
                     except KeyError:
                         pass
                 creation_loop += 1
@@ -428,75 +480,290 @@ class Sim:
             self.log_print('Writing {0}'.format(fname))
             with open(fname, 'w') as file:
                 pickle.dump(initial_state, file)
+        nx.set_edge_attributes(self.h.G,'initial_state',initial_state)          
+        self.initial_state=initial_state
+
+    def init_by_edge(self):
+        ''' Function to initialise agent properties.
+        '''
+        # Load the initial state of agents
+        self.load_initial_state()
+        # NOTE: Need to be able to raise error if no destination
+        for u,v,d in self.h.G.edges_iter(data=True):
+            # Initialise the queue
+            self.h.G[u][v]['queue'] = deque()            
         # Construct the agents
         agent_id = 0
         self.agents = []
-        self.agents_per_tstep = {}    
-        self.events = []    
-        for u,v in initial_state:
-            number_of_agents_in_this_edge = initial_state[(u,v)]
-            for i in range(number_of_agents_in_this_edge):
+        self.agents_per_tstep = {}
+        self.events = {}
+        self.log_print('Using [{0}] allocation'.format(settings[self.scenario]['path']))
+        for u,v in self.initial_state:
+            edge = self.h.G[u][v]
+            for i in range(edge['initial_state']):
                 # When a new agent is introduced, the position is proportional to the order of the agent
                 # Position is a value between 0 and 1 which shows how the agent is progressing through an edge
                 # position = 1 means agent is at u
                 # position = 0 means agent is at v
-                position = float(i+1)/number_of_agents_in_this_edge
-                agent = Agent(agent_id,initial_edge=(u,v),initial_position=position)
+                position = float(i+1)/edge['initial_state']
+                if settings[self.scenario]['path'] == 'invdistprob':
+                    destin = np.random.choice(edge['invdistprob'].keys(),p=edge['invdistprob'].values())
+                elif settings[self.scenario]['path'] == 'nearest':
+                    destin = edge['nearest_destin']
+                agent = Agent(agent_id,initial_edge=(u,v),initial_position=position,destin=destin)
                 # Determine the node that the agent is travelling to
                 # Save the initial position of the agent
                 # Add to the number of agents on that link
-                self.h.G[u][v]['queue_length'] += 1
-                density = self.density(self.h.G[u][v])
-                velocity = fd.v_dict[density]
-                agent.last_action_time = 0
-                agent.action_time = position*self.h.G[u][v]['distance']/velocity
+                agent.action_time = position*edge['distance']/self.fd.v_ff_spedup
+                self.agents.append(agent)
+                edge['queue'].append(agent)
+                # dist2u: distance to go back to get go from starting position to node u
+                agent.dist2u = (position-1)*edge['distance']                
+                # What was the time when agent was at u?
+                # This is likely to go into negatives
+                agent.time_at_u = agent.dist2u/self.fd.v_ff_spedup
+                agent.log_event = False
+                agent_id += 1
+        # Cache percent of agents as True
+        for agent in random.sample(self.agents,self.n*self.log_events_percent/100):
+            agent.log_event = True
+        # Log initial event for these agents
+        for agent in self.agents:
+            self.log_event(agent,where=0)                
+
+    def init_by_agent(self):
+        ''' Function to initialise agent properties.
+        '''
+        # Load the initial state of agents
+        self.load_initial_state()
+        # NOTE: Need to be able to raise error if no destination
+        for u,v,d in self.h.G.edges_iter(data=True):
+            # Initialise the queue length
+            self.h.G[u][v]['queue_length'] = 0
+
+        # Construct the agents
+        agent_id = 0
+        self.agents = []
+        self.agents_per_tstep = {}
+        self.events = {}
+        self.log_print('Using [{0}] allocation'.format(settings[self.scenario]['path']))
+        for u,v in self.initial_state:
+            edge = self.h.G[u][v]
+            for i in range(edge['initial_state']):
+                # When a new agent is introduced, the position is proportional to the order of the agent
+                # Position is a value between 0 and 1 which shows how the agent is progressing through an edge
+                # position = 1 means agent is at u
+                # position = 0 means agent is at v
+                position = float(i+1)/edge['initial_state']
+                if settings[self.scenario]['path'] == 'invdistprob':
+                    destin = np.random.choice(edge['invdistprob'].keys(),p=edge['invdistprob'].values())
+                elif settings[self.scenario]['path'] == 'nearest':
+                    destin = edge['nearest_destin']
+                agent = Agent(agent_id,initial_edge=(u,v),initial_position=position,destin=destin)
+                # Determine the node that the agent is travelling to
+                # Save the initial position of the agent
+                # Add to the number of agents on that link
+                edge['queue_length'] += 1
+                density = self.density(edge)
+                velocity = self.fd.v_dict[density]
+                agent.action_time = position*edge['distance']/velocity
                 try:
                     self.agents_per_tstep[int(agent.action_time)].append(agent)
                 except KeyError:
                     self.agents_per_tstep[int(agent.action_time)] = [agent]
                 self.agents.append(agent)
+                # Agent distance to exit
+                agent.dist2x = self.h.route_length[destin][v] + position*edge['distance']
+                # dist2u distance to go back to get go from starting position to node u
+                agent.dist2u = (position-1)*edge['distance']
                 # What was the time when agent was at u?
                 # This is likely to go into negatives
-                time_at_u = (position-1)*self.h.G[u][v]['distance']/velocity
-                self.events.append([(u,round(time_at_u,fd.dp))])
+                agent.time_at_u = agent.dist2u/velocity
+                # Set this flag to Falase by default
+                agent.log_event = False
+                # Number of timesteps an agent is stuck
+                agent.stuck = 0
+                # Up agent count
                 agent_id += 1
+        # Cache percent of agents as True
+        for agent in random.sample(self.agents,self.n*self.log_events_percent/100):
+            agent.log_event = True
+        # Log initial event for these agents
+        for agent in self.agents:
+            self.log_event(agent,where=0)                
         # If use of Journey Time is enabled, construct a journey time matrix.
         # It is currently not being used as it is not fully mature.
         if False:
             # Construct a profile of journey time based on number of agents on various links
-            for u,v,d in range(self.h.G.edges_iter(data=True)):
-                velocity = fd.v_dict[self.density(d)]
+            for u,v,d in self.h.G.edges_iter(data=True):
+                velocity = self.fd.v_dict[self.density(d)]
                 self.h.G[u][v]['journey_time'] = d['distance']/velocity
     
-    def run(self,rerun=False,agent_progress_bar=False,cache_events_percent=100):
+    def run_by_edge(self,rerun=False,log_events_percent=100,metadata=False,verbose=False):
         ''' Function to animate the agents.
         '''
         success = 0
         # Load this as all scenarios share the same EM EA and route
-        # This is within run_sim because they are only required for the simulation.
+        # This is within run_sim because they are only required for the simulation.        
         self.h.init_route()
-        # Iterate through scenarios
+        # Cache events percent
+        self.log_events_percent = log_events_percent
+        # Iterate through scenarios        
         for scenario in self.scenarios:
             # Initiate the given scenario
             self.init_scenario(scenario)
 
             if self.events_file_exists() and not rerun:
                 self.log_print('Scenario has already been simulated with these parameters!')
-            else:
-                self.init_agents()
+            else:                
+                self.init_by_edge()
                 self.log_print('Starting this simulation...')                
                 self.sim_complete = False                  
 
                 self.tstep = 0
-                self.tstep_length = 1        
 
-                self.agents_left = self.n
+                agents_left = self.n
 
-                print '\n Time: {:0.4f} Agents Left: {}'.format(self.tstep, self.agents_left)
+                self.log_print('Time {}*{} seconds: Agents Left: {}'.format(self.tstep,self.fd.speedup, agents_left))
 
                 # Start the timer
                 start_time = time.time()
-                while self.agents_left:
+
+                while agents_left:
+                    """Simulation starts here until there are zero agents left"""
+                    total_actors = 0
+                    flowing_edges = []
+                    # Calculate the number of agents that are allowed to move
+                    for u,v,d in self.h.G.edges_iter(data=True):
+                        if settings[self.scenario]['df'] == 0:
+                            # Flow capacity is infinite in free flow
+                            d['flow_capacity'] = np.inf  
+                        else:
+                            fc = self.fd.q_dict[round(len(d['queue'])/d['area'],self.fd.dp)]*d['assumed_width']
+                            d['flow_capacity'] = int(fc) + (random.random() < fc - int(fc))
+                        if d['flow_capacity'] > 0:
+                            flowing_edges.append((u,v))
+                    # Randomise the order in which we access these edges
+                    random.shuffle(flowing_edges)
+                    for u,v in flowing_edges:
+                        edge = self.h.G[u][v]
+                        actors = 0
+                        while edge['flow_capacity'] >= actors and len(edge['queue'])>0:
+                            agent = edge['queue'][0]
+                            if agent.action_time > self.tstep:
+                                """If it is not turn for first agent in the queue to act yet, skip this edge"""
+                                if verbose:
+                                    self.log_print('Time {}*{} seconds: Not turn to act yet for agent {} at edge ({},{}), SKIPPING LINK'.format(agent.action_time,self.fd.speedup,agent.id,u,v))
+                                break
+                            if agent.destin == v:
+                                """If agent has reached destination"""
+                                # Decrement the number of agents left
+                                agents_left -= 1
+                                # Remove the agent from the queue
+                                edge['queue'].popleft()
+                                # Preserve the residual time
+                                agent.action_time = self.tstep - agent.action_time + int(agent.action_time)                                
+                                # Log the time that v is reached
+                                self.log_event(agent)
+                                # Print the simulation time
+                                if verbose:
+                                    self.log_print('Time {}*{} seconds: Agent {} has reached destination'.format(agent.action_time,self.fd.speedup,agent.id))
+                                # Keep a tally of acting agents
+                                actors += 1
+                            else:
+                                # Determine the new edge
+                                new_u = v
+                                new_v = self.h.route[agent.destin][v]
+                                new_edge = self.h.G[new_u][new_v]
+                                if new_edge['storage_capacity'] > len(new_edge['queue'])*settings[self.scenario]['df']:
+                                    """Only move the agent if there is capacity in the new edge"""
+                                    # Remove the agent from the old edge
+                                    edge['queue'].popleft()
+                                    # Add agent to the new edge
+                                    new_edge['queue'].append(agent)
+                                    # Preserve the residual time
+                                    agent.action_time = self.tstep - agent.action_time + int(agent.action_time)
+                                    if verbose:
+                                        self.log_print('Time {}*{} seconds: Old action time for agent {}'.format(agent.action_time,self.fd.speedup,agent.id))
+                                    # Log the time that v is reached
+                                    self.log_event(agent)
+                                    # Determine the next time to take action depending on:
+                                    #   - Link length
+                                    #   - Link density
+                                    agent.action_time += new_edge['distance']/self.fd.v_ff_spedup
+                                    # Assign new edge to the agent
+                                    agent.edge = (new_u,new_v)
+                                    # Keep a tally of acting agents
+                                    actors += 1
+                                    if verbose:
+                                        self.log_print('{} new action time is {}'.format(agent.id,agent.action_time))
+                                else:
+                                    """If there is no capacity, skip to next link"""
+                                    # if agent.id == 1 and self.scenario == 'ff':
+                                    #     pdb.set_trace()
+                                    if verbose:
+                                        self.log_print('Time {}*{} seconds: No storage capacity on edge ({},{}) for agent {}, SKIPPING LINK'.format(agent.action_time,self.fd.speedup,new_u,new_v,agent.id))
+                                    break
+                        total_actors += actors
+                    # Increment timestep
+                    self.log_print('Time {}*{} seconds: Acting {}, Left {}'.format(self.tstep,self.fd.speedup,total_actors,agents_left))
+                    self.tstep += 1
+                # Determine the execution time
+                self.execution_time = time.time()-start_time
+                self.log_print('Execution took {:0.4f} seconds.'.format(self.execution_time))
+                # Log events
+
+                """
+                    Different concepts are:
+                        gross capacity is how much an edge can carry
+                        gross capacity is calculated from capacity density = 5 person/m^2
+                        occupancy is how many agents an edge is carrying right now
+                        occupancy must be lower than capacity
+                        net capacity = gross capacity - occupancy
+                        gross occupancy/area is gross occupancy density
+                        flow is the number of agents that are allowed to move
+                        flow is calculated from occupancy density
+                        flow is the limit of number of people of agents that can move
+                            as long as the net capacity > 0 in the next edge
+                        when an agent enters an edge, 
+                        so at each timestep, there is a flow rate calculated from 
+                """
+                self.cache_events(metadata=metadata)
+
+                success += 1
+        return success
+
+    def run_by_agent(self,rerun=False,log_events_percent=100,metadata=False,verbose=False):
+        ''' Function to animate the agents.
+        '''
+        success = 0
+        # Load this as all scenarios share the same EM EA and route
+        # This is within run_sim because they are only required for the simulation.
+        self.h.init_route()
+        # Cache events percent
+        self.log_events_percent = log_events_percent
+        # Iterate through scenarios
+        for scenario in self.scenarios:
+            # Initiate the given scenario
+            self.init_scenario(scenario)
+            if self.events_file_exists() and not rerun:
+                self.log_print('Scenario has already been simulated with these parameters!')
+            else:
+                # Cache percent events
+                self.init_by_agent()
+                self.log_print('Starting this simulation...')                
+                self.sim_complete = False                  
+
+                self.tstep = 0
+                # Rather than chaging tstep_length, change fd.speedup to control update interval
+                self.tstep_length = 1
+
+                agents_left = self.n
+
+                # Start the time
+                start_time = time.time()
+                while agents_left:
+                    rerouting_in_this_tstep = 0                
                     # Event log for this timestep
                     self.loop_this = True
                     try:
@@ -504,116 +771,170 @@ class Sim:
                     except KeyError:
                         # There are no agents awaiting action in this timestep so pass
                         self.loop_this = False
+                    # if self.tstep == 3:
+                    #     pdb.set_trace()
                     if self.loop_this:
-                        self.log_print('Agents acting in tstep {}: {} of {}'.format(self.tstep,len(self.agents_per_tstep[self.tstep]),self.agents_left))
                         # Loop through every agent due action in this timestep
-                        for self.agent in self.agents_per_tstep[self.tstep]:
+                        for agent in self.agents_per_tstep[self.tstep]:
                             # Loop until the agent action_time exceeds the sim_time
-                            self.add_agent = True
-                            while self.agent.action_time < self.tstep + self.tstep_length:
+                            add_agent = True
+                            while agent.action_time < self.tstep + self.tstep_length:
                                 # Determine the edge that the agent is on
-                                u,v = self.agent.edge
+                                u,v = agent.edge
                                 edge = self.h.G[u][v]
-                                # print self.agent.action_time, self.tstep
+                                # print agent.action_time, self.tstep
                                 # If this is the last edge
-                                if v == edge['nearest_destin']:
+                                if v == agent.destin:
                                     # Decrement the number of agents left
-                                    self.agents_left -= 1
+                                    agents_left -= 1
                                     # Remove the agent from the queue
                                     edge['queue_length'] -= 1
-                                    if self.use_buffer and self.agent.in_buffer:
-                                        edge['buffer_length'] -= 1
-                                        self.agent.in_buffer = False
-                                    self.agent.destin = v
                                     # Log the time spent on last edge
-                                    self.events[self.agent.id].append((v,round(self.agent.action_time,fd.dp)))
+                                    self.log_event(agent)
                                     # Print the simulation time
-                                    if agent_progress_bar:
-                                        self.log_print('\n Time: {:0.4f} Agents Left: {}'.format(self.agent.action_time, self.agents_left))
-                                    self.add_agent = False
+                                    if verbose:
+                                        self.log_print('Time: {:0.2f}*{} Agents Left: {}'.format(agent.action_time,self.speedup, agents_left))
+                                    add_agent = False
                                     # print 'break 1'
                                     break
                                 else:
+                                    # occsucc=lambda(succ): [(k,succ[k]['queue_length']/float(succ[k]['storage_capacity'])) for k in succ]
                                     # Determine the new edge
                                     new_u = v
-                                    new_v = self.h.route[edge['nearest_destin']][v]
+                                    new_v = None
+                                    # If the agent has been stuck for longer than 5 minutes, randomly pick a successor road
+                                    if agent.stuck > 5*60/self.fd.speedup:
+                                        choices = self.h.G.successors(new_u)
+                                        # If there is more than one choice
+                                        if len(choices) > 1:
+                                            choice = random.choice(choices)
+                                            # Conditions:
+                                            # If the random choice is the the way we came
+                                            if choice is not u:                                    
+                                                try:
+                                                    # The following will invoke an error if there is
+                                                    # still a route to destination from our random choice
+                                                    self.h.route[agent.destin][choice]
+                                                    rerouting_in_this_tstep += 1
+                                                    new_v = choice
+                                                except KeyError:
+                                                    pass
+                                    if new_v == None:
+                                        new_v = self.h.route[agent.destin][v]
                                     new_edge = self.h.G[new_u][new_v]
                                     # Only move the agent if there is capacity in the new edge
-                                    if new_edge['capacity'] > new_edge['queue_length']:
+                                    if new_edge['storage_capacity'] > new_edge['queue_length']*settings[self.scenario]['df']:
                                         # Remove the agent from the old edge
                                         edge['queue_length'] -= 1
-                                        if self.use_buffer and self.agent.in_buffer:
-                                            edge['buffer_length'] -= 1
-                                            self.agent.in_buffer = False
                                         # Add agent to the new edge
                                         new_edge['queue_length'] += 1
                                         # Log the time spent on last edge
-                                        self.events[self.agent.id].append((v,round(self.agent.action_time,2)))
+                                        self.log_event(agent)
                                         # Determine the next time to take action depending on:
                                         #   - Link length
                                         #   - Link density
-                                        self.agent.action_time += new_edge['distance']/fd.v_dict[self.density(new_edge)]
+                                        agent.action_time += new_edge['distance']/self.fd.v_dict[self.density(new_edge)]
                                         # Assign new edge to the agent
-                                        self.agent.edge = (new_u,new_v)
+                                        agent.edge = (new_u,new_v)
+                                        # Not stuck anymore
+                                        agent.stuck = 0
                                     else:
                                         # If there is no capacity, wait till the next time step                                        
-                                        self.agent.action_time += self.tstep_length
-                                        # Use self.use_buffer to specify whether to use additional buffer time depending                                        
-                                        if self.use_buffer:
-                                            # If the agent is not already in buffer, add to buffer
-                                            if self.agent.in_buffer is False:
-                                                    self.agent.in_buffer = True
-                                                    edge['buffer_length'] += 1
-                                            # on the buffer ratio and length of time required to traverse the next edge. For example:
-                                            # - If buffer_length/capacity in the next edge ---> 0, buffer_time ---> 0
-                                            # - If buffer_length/capacity in the next edge ---> 1, buffer_time ---> random(0,new_traversal_time)
-                                            # The logic is: if all agents in the next edge are waiting in the buffer,
-                                            #   chance that any of the agents in this edge can move until the ones in the next
-                                            #   edge have cleared is pretty low. So, the minimum time required to traverse the
-                                            #   next edge depends on the density of that edge and is given by new_traversal_time.
-                                            # At the moment, using the buffer seems to underestimate the time obtained without it.
-                                            # - I need to think of a way to implement buffer that produces a similar result to unbuffered time.
-                                            # - As such, unbuffered is a more conservative estimate.
-                                            # - And as such, only proceed with using buffer only if the need for performance outweighs accuracy.
-                                            self.agent.action_time += random.random()*new_edge['distance']/fd.v_dict[self.density(new_edge)]*new_edge['buffer_length']/new_edge['capacity']
+                                        agent.action_time += self.tstep_length
+                                        # Count the number of timesteps an agent has been stuck
+                                        agent.stuck += 1
                                         break
-                            if self.add_agent:
+                            if add_agent:
                                 try:
-                                    self.agents_per_tstep[int(self.agent.action_time)].append(self.agent)
+                                    self.agents_per_tstep[int(agent.action_time)].append(agent)
                                 except KeyError:
-                                    self.agents_per_tstep[int(self.agent.action_time)] = [self.agent]
-                    # Delete list of agents that were processed in this timestep to free up memory
-                    # try:
-                    #     del self.agents_per_tstep[self.tstep]
-                    # except KeyError:
-                    #     pass
+                                    self.agents_per_tstep[int(agent.action_time)] = [agent]
+                        self.log_print('Time {}*{} seconds: Agents Acting {} of {}'.format(self.tstep,self.speedup,len(self.agents_per_tstep[self.tstep]),agents_left))
+                        if rerouting_in_this_tstep > 0:
+                            self.log_print('    {} rerouting after being stuck for more than 5 mins'.format(rerouting_in_this_tstep))
+                        # Delete list of agents that were processed in this timestep to free up memory
+                        del self.agents_per_tstep[self.tstep]
                     # Increment timestep
                     self.tstep += self.tstep_length
                 # Determine the execution time
                 self.execution_time = time.time()-start_time
-                self.log_print('Execution took {:0.3f} seconds.'.format(self.execution_time))
+                self.log_print('Execution took {:0.2f} seconds.'.format(self.execution_time))
                 # Log events
 
-                self.cache_events(percent=cache_events_percent)
+                """
+                    Different concepts are:
+                        gross capacity is how much an edge can carry
+                        gross capacity is calculated from capacity density = 5 person/m^2
+                        occupancy is how many agents an edge is carrying right now
+                        occupancy must be lower than capacity
+                        net capacity = gross capacity - occupancy
+                        gross occupancy/area is gross occupancy density
+                        flow is the number of agents that are allowed to move
+                        flow is calculated from occupancy density
+                        flow is the limit of number of people of agents that can move
+                            as long as the net capacity > 0 in the next edge
+                        when an agent enters an edge, 
+                        so at each timestep, there is a flow rate calculated from 
+                """
+                self.cache_events(metadata=metadata)
 
                 success += 1
         return success
 
-    def cache_events(self,percent):
+    def cache_events(self,metadata):
         ''' Cache events
         '''
         to_write = ''
-        for id,event in enumerate(random.sample(self.events,self.n*percent/100)):
+        # Forget the agent id, only the events matter        
+        self.events = self.events.values()        
+        for event in self.events:
             for node,tstep in event:
                 to_write += '{}:{} '.format(tstep,node)
             to_write += '\n'
         with gzip.open(self.events_file,'wb') as file:
             file.write(to_write)
 
+        # Write metadata if this flag is True
+        if metadata:
+            # Metadata folder
+            metadata_folder = 'metadata/{}/{}'.format(self.sim,self.place)
+            if not os.path.isdir(metadata_folder):
+                os.makedirs(metadata_folder)
+            # Write another file with start and end times only for ALL agents
+            # Metadata contains start_node, destin_node, start_pos, dist2exit, endtime
+            # Initial node
+            I = []
+            # Destin node
+            X = []
+            # dist2u distance since sometimes time is negative
+            DX = []
+            # Distance to exit
+            DU = []
+            # Time to exit
+            TX = []
+            for agent in self.agents:
+                I.append(agent.initial_edge)
+                X.append(agent.destin)
+                DU.append(agent.dist2u)
+                DX.append(agent.dist2x)
+                TX.append(agent.action_time)
+
+            df=pandas.DataFrame(zip(I,X,DU,DX,TX),columns=['initedge','destin','dist2u','dist2x','time2x'])
+            df.to_hdf('{}/agents.hdf'.format(metadata_folder),self.scenario,mode='a',complib='blosc',fletcher32=True)
+            
+            # Dictionary of destin edges
+            destin_width = {}
+            for destin in self.h.destins:
+                destin_width[destin]= {(i,destin):v['assumed_width'] for i,v in self.h.G.pred[destin].iteritems()}
+
+            f = shelve.open('{}/common.shelve'.format(metadata_folder))
+            f['destin_width'] = destin_width
+            f.close()
+
     def events_file_exists(self):
         return os.path.isfile(self.events_file)
 
-    def load_events(self):
+    def load_events(self,metadata=None):
         ''' Load events
         '''
         self.events = []
@@ -624,8 +945,27 @@ class Sim:
                 for pair in line.split(' '):
                     if not pair == '\n':
                         tstep,node = pair.split(':')
-                        this.append((float(tstep),int(node)))
+                        this.append((int(node),float(tstep)))
                 self.events.append(this)
+        self.log_print('Event file contains record for {}% of {} agents'.format(100*len(self.events)/self.n,self.n))
+
+    def log_event(self,agent,where=1):
+        """Log event to file
+            where = 0 means u
+            where = 1 means v
+        """
+        if agent.log_event:
+            if where == 1:
+                # Use the default action time
+                when = agent.action_time
+            elif where == 0:
+                # This is referring to the beginning so use the initial time
+                when = agent.time_at_u
+            e = (agent.edge[where],round(when,self.fd.dp))
+            try:
+                self.events[agent.id].append(e)
+            except KeyError:
+                self.events[agent.id] = [e]
 
     def dist2exit(self,agent):
         ''' Function to calculate agent distance to exit. Input is the agent index.
@@ -641,14 +981,14 @@ class Sim:
             If df = 0, returns 0 density so that we can determine free flow evacuation time.
         '''
         if edge['blocked']:
-            k = fd.k_max
+            k = self.fd.k_max
         else:
             k = settings[self.scenario]['df']*edge['queue_length']/edge['area']
-        return round(k,fd.dp)
+        return round(k,self.fd.dp)
 
 
 class Viewer:
-    def __init__(self,sim,t0=0.0,tstep=0.5,percent=5,video=True):
+    def __init__(self,sim,bbox=None,t0=0.0,tstep=1,percent=5,video=True):
         ''' Sim tracks viewer.
         
             Inputs
@@ -664,8 +1004,11 @@ class Viewer:
                     eg. 100 = all agents, 10 = 10 percent of agents
         '''                
         self.s = sim
-        self.tracks = [Track(e,self.s.h.G) for e in self.s.events]
-
+        self.tracks = [Track(e,self.s.h.G,self.s.fd) for e in self.s.events]
+        if bbox:
+            self.l,self.r,self.b,self.t = min(bbox[0],bbox[2]), max(bbox[0],bbox[2]), min(bbox[1],bbox[3]), max(bbox[1],bbox[3])
+        else:
+            self.l,self.r,self.b,self.t = self.s.h.l, self.s.h.r, self.s.h.b, self.s.h.t
         self.t0 = t0
         self.tstep = tstep
         self.percent = percent
@@ -674,6 +1017,20 @@ class Viewer:
         self.video_file = '{}/showing-{}-percent.mp4'.format(self.s.scenario_file,self.percent)
         if video:
             self.video()
+        # By all, we mean a sample of P
+        all_P = []
+        all_S = []
+        all_t = []
+        for t in self.frames():
+            P,S = self.PS(t)
+            self.remaining_agents = len(S)
+            if self.remaining_agents > 0:
+                all_P.append(P)
+                all_S.append(S)
+                all_t.append(np.array([t]*self.remaining_agents))
+        self.all_P = np.vstack(all_P)
+        self.all_S = np.hstack(all_S)
+        self.all_t = np.hstack(all_t)
 
     def video(self):
         # Load figure background
@@ -681,20 +1038,19 @@ class Viewer:
         fig = plt.gcf()
         ax = plt.gca()
         # Set Axes limit
-        ax.set_xlim(self.s.h.l, self.s.h.r) 
-        ax.set_ylim(self.s.h.b, self.s.h.t) 
+        ax.set_xlim(self.l,self.r) 
+        ax.set_ylim(self.b,self.t)
         # Load colourmap
         cm = plt.cm.get_cmap('Spectral')
         # Initialise points
-        self.points = ax.scatter([0],[0],c=[0],marker='o',edgecolors='none',cmap=cm,alpha=0.5,clim=[0.1,fd.v_ff],norm=LogNorm(vmin=0.1, vmax=fd.v_ff))
+        self.points = ax.scatter([0],[0],c=[0],marker='o',edgecolors='none',cmap=cm,alpha=0.5,clim=[0.1,self.s.fd.v_ff],norm=LogNorm(vmin=0.1, vmax=self.s.fd.v_ff))
         # Initialise text
         self.time_text = ax.text(0.02, 0.94, '', transform=ax.transAxes,alpha=0.5,size='large')
         # Draw colorbar and label
-        divider = make_axes_locatable(plt.gca())
-        cax = divider.append_axes("right", "5%", pad="3%")
-        cb = fig.colorbar(self.points,cax=cax,ticks=[fd.v_dict[k]/fd.speedup for k in range(int(fd.k_lim))], format='$%.2f$')
-        cb.set_label("Velocity $m/s$", rotation=90)
-
+        cb = fig.colorbar(self.points,shrink=0.5,ticks=[self.s.fd.v_dict[k]/self.s.fd.speedup for k in range(int(self.s.fd.k_lim))], format='$%.2f$',orientation='horizontal')
+        cb.set_label("Velocity [m/s]", fontsize=15)
+        plt.xlabel('Longitude',fontsize=15)
+        plt.ylabel('Latitude',fontsize=15)            
         plt.ion()
         plt.show()
 
@@ -713,22 +1069,23 @@ class Viewer:
 
     def animate(self,t):
         P,S = self.PS(t)
-        self.agents_left = len(S) * 100 / self.percent
+        self.remaining_agents = len(S) * 100 / self.percent
         self.points.set_offsets(P)
         self.points.set_array(S)
-        self.time_text.set_text('T:{0} A:{1}'.format(t,self.agents_left))
+        self.time_text.set_text('T:{0} A:{1}'.format(t,self.remaining_agents))
         return self.points, self.time_text
 
     def frames(self):
         t = self.t0
-        self.agents_left = self.sample_size * 100 / self.percent
+        self.remaining_agents = self.sample_size * 100 / self.percent
         # Generate frames until simulation has ended
-        while self.agents_left > 0:
+        while self.remaining_agents > 0:
             yield t
-            print t, self.agents_left        
+            print t, self.remaining_agents        
             t = t + self.tstep
 
     def PS(self,t):
+        """Return position and speed"""
         try:
             P,S = zip(*np.vstack([(track.position(t),track.speed) for track in self.sample_tracks if track.position(t) is not False]))
         except ValueError:
@@ -737,23 +1094,33 @@ class Viewer:
         return P,S
 
     def path(self,which='time'):
-        all_P = []
-        all_S = []
-        all_t = []
-        for t in self.frames():
-            P,S = self.PS(t)
-            self.agents_left = len(S)
-            if self.agents_left > 0:
-                all_P.append(P)
-                all_S.append(S)
-                all_t.append(np.array([t]*self.agents_left))
-        self.all_P = np.vstack(all_P)
-        self.all_S = np.hstack(all_S)
-        self.all_t = np.hstack(all_t)
         if which == 'time':
             colors = self.all_t
+            clim = [0.1,self.all_t.max()]
+            ticks = np.logspace(0.1,np.log10(self.all_t.max()),5)
+            format = '$%.0f$'
+            norm = LogNorm(vmin=0.1, vmax=self.all_t.max())
         elif which == 'speed':
             colors = self.all_S
-        plt.scatter(self.all_P[:,0],self.all_P[:,1],c=colors,marker='.',edgecolors='none',alpha=0.2)
-        plt.colorbar()
+            clim = [0.1,self.s.fd.v_ff]
+            ticks = [self.s.fd.v_dict[k]/self.s.fd.speedup for k in range(int(self.s.fd.k_lim))]
+            format = '$%.2f$'
+            norm = LogNorm(vmin=0.1, vmax=self.s.fd.v_ff)
+        fig = plt.figure(figsize=(12,8))
+        ax = plt.gca()
+        # Set Axes limit
+        # ax.set_xlim(self.l,self.r)
+        # ax.set_ylim(self.b,self.t)
+        cm = plt.cm.get_cmap('Spectral')
+        # Initialise points
+        self.points = ax.scatter(self.all_P[:,0],self.all_P[:,1],c=colors,marker='.',edgecolors='none',cmap=cm,alpha=0.2,clim=clim,norm=norm)
+        cb = plt.colorbar(self.points,ticks=ticks, format=format,orientation='horizontal',shrink=0.5)
+        if which == 'speed':
+            cb.set_label("Velocity [m/s]",fontsize=15)
+        elif which == 'time':
+            cb.set_label("Time [minutes]",fontsize=15)
+        for destin in self.s.h.destins:
+            plt.scatter(*self.s.h.G.node[destin]['pos'],s=200,c='g',alpha=0.5,marker='o')
+        plt.xlabel('Longitude',fontsize=15)
+        plt.ylabel('Latitude',fontsize=15)            
         plt.show()

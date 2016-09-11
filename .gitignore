@@ -21,3 +21,9 @@ v4/sample
 v4/figs
 v3/figs
 *.tgz
+*.hdf
+*.bak
+*.dir
+*.dat
+*.pdf
+*.tex
