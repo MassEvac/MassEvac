@@ -1,9 +1,10 @@
 # Used for the TGF 2015 paper
-import sys
-sys.path.append('core')
-import abm, db, csv, numpy as np
+from core import abm, db
 reload(abm)
 reload(db)
+
+import csv
+import numpy as np
 import pickle
 
 self = abm.Sim('test_abm_fd',(-2.88612967859241, 54.91133135582125, -2.9609706894330743, 54.88327220183169))
