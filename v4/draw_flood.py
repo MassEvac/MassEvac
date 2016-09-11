@@ -17,6 +17,24 @@ import matplotlib.pyplot as plt
         # db.plt.xlabel('lon')
         # db.plt.ylabel('lat')
 
+"""Original and binary flood map"""
+original = db.Flood('flood/res1_1_original.tif')
+binary = db.Flood('flood/res1_1_binary_30cm.tif')
+plt.close('all')
+plt.figure(figsize=(10,14))
+plt.subplot(211)
+plt.imshow(original.Map*100,extent=[self.minx,self.maxx,self.miny,self.maxy],vmin=0,alpha=1.0, cmap=plt.get_cmap('Blues'))
+cb=plt.colorbar(ticks=[30,1000],orientation='horizontal',shrink=0.5)
+cb.set_ticklabels(['$30$ cm','$1000$ cm'])
+plt.xlabel('Longitude',fontsize=15)
+plt.ylabel('Latitude',fontsize=15)
+plt.subplot(212)
+plt.imshow(binary.Map,extent=[self.minx,self.maxx,self.miny,self.maxy],vmin=0,alpha=1.0, cmap=plt.get_cmap('Blues'))
+cb=plt.colorbar(ticks=[0,1],orientation='horizontal',shrink=0.5)
+cb.set_ticklabels(['Not flooded','Flooded'])
+plt.xlabel('Longitude',fontsize=15)
+plt.ylabel('Latitude',fontsize=15)
+plt.savefig('flood/figs/flood-map.pdf',bbox_inches='tight')
 
 """Location of hospital and reference node on map showing flooded areas"""
 ref_node = 1 # Distance to hospital from this node
@@ -28,22 +46,22 @@ normal.fig_highway()
 fig = plt.gcf()
 fig.set_size_inches(12,8,forward=True)
 self=flood
-plt.imshow(self.Map,extent=[self.minx,self.maxx,self.miny,self.maxy],vmin=0,alpha=0.6, cmap=plt.get_cmap('Blues'))
+plt.imshow(binary.Map,extent=[self.minx,self.maxx,self.miny,self.maxy],vmin=0,alpha=1.0, cmap=plt.get_cmap('Blues'))
 cb=plt.colorbar(ticks=[0,1],orientation='horizontal',shrink=0.5)
 cb.set_ticklabels(['Not flooded','Flooded'])
 plt.plot(*bbox.boundary.xy,label='Flood map extent')
 x,y=zip(*[normal.G.node[n] for n in with_access])
-plt.scatter(x,y,c='g',alpha=0.3,linewidth=0,label='With access')
+plt.scatter(x,y,c='gray',alpha=0.3,linewidth=0,label='With access')
 x,y=zip(*[normal.G.node[n] for n in no_access])
 plt.scatter(x,y,c='r',alpha=0.3,marker='x',label='No access')
-plt.scatter(*normal.G.node[hospital],s=200,c='k',alpha=1.0,marker='o',label='Hospital',linewidth=0)
-plt.scatter(*normal.G.node[ref_node],s=200,c='k',alpha=1.0,marker='v',label='Reference node',linewidth=0)
+plt.scatter(*normal.G.node[hospital],s=200,c='g',alpha=0.5,marker='o',label='Hospital')
+plt.scatter(*normal.G.node[ref_node],s=200,c='y',alpha=0.5,marker='v',label='Reference node')
 plt.legend(scatterpoints=1)
 plt.xlabel('Longitude',fontsize=15)
 plt.ylabel('Latitude',fontsize=15)
 plt.axis('equal')
 plt.xlim(flood.minx-0.03, flood.maxx+0.03)
-plt.ylim(flood.miny-0.03, flood.maxy+0.03)		
+plt.ylim(flood.miny-0.03, flood.maxy+0.03)  
 plt.savefig('flood/figs/carlisle+floodmap+hospital+ref-node.pdf',bbox_inches='tight')
 
 
@@ -51,36 +69,42 @@ plt.savefig('flood/figs/carlisle+floodmap+hospital+ref-node.pdf',bbox_inches='ti
 import matplotlib.pyplot as plt
 from descartes import PolygonPatch
 from matplotlib.collections import PatchCollection
-def draw_polygons(shapes,colors,label,show_hospital=True):	
-	patches=[]
-	for s in shapes:
-	    patches.append(PolygonPatch(s))
-	pc = PatchCollection(patches, cmap=plt.get_cmap('RdYlBu'), alpha=1.0)
-	pc.set_array(np.array(colors))
-	pc.set_clim([np.min(colors),np.max(colors)])
-	fig = plt.figure(figsize=(12,8))
-	ax = plt.gca()
-	ax.add_collection(pc)
-	cb=plt.colorbar(pc,orientation='horizontal',shrink=0.5)
-	cb.set_label(label,fontsize=15)
-	plt.xlabel('Longitude',fontsize=15)
-	plt.ylabel('Latitude',fontsize=15)
-	plt.axis('equal')
-	plt.xlim(flood.minx-0.01, flood.maxx+0.055)
-	plt.ylim(flood.miny, flood.maxy+0.015)		
-	if show_hospital:
-		plt.scatter(*normal.G.node[hospital],s=200,c='g',alpha=0.5,marker='o')
-		plt.scatter(*normal.G.node[hospital],s=10,c='g',alpha=1.0,marker='o')
+def draw_polygons(shapes,colors,label,show_hospital=True): 
+ patches=[]
+ for s in shapes:
+     patches.append(PolygonPatch(s))
+ pc = PatchCollection(patches, cmap=plt.get_cmap('RdYlBu'), alpha=1.0)
+ pc.set_array(np.array(colors))
+ pc.set_clim([np.min(colors),np.max(colors)])
+ fig = plt.figure(figsize=(12,8))
+ ax = plt.gca()
+ ax.add_collection(pc)
+ cb=plt.colorbar(pc,orientation='horizontal',shrink=0.5)
+ cb.set_label(label,fontsize=15)
+ plt.xlabel('Longitude',fontsize=15)
+ plt.ylabel('Latitude',fontsize=15)
+ plt.axis('equal')
+ plt.xlim(flood.minx-0.01, flood.maxx+0.055)
+ plt.ylim(flood.miny, flood.maxy+0.015)  
+ if show_hospital:
+  plt.scatter(*normal.G.node[hospital],s=200,c='g',alpha=0.5,marker='o')
+  plt.scatter(*normal.G.node[hospital],s=10,c='g',alpha=1.0,marker='o')
 
-
-"""Draw polygons with number of nodes"""	
+"""Draw polygons with number of nodes""" 
 plt.close('all')
+
 shapes,colors = zip(*[(OA_shapes[id],len(nodes)) for id,nodes in OA_nodes.iteritems()])
 draw_polygons(shapes,colors,'Number of nodes')
-plt.savefig('flood/figs/OA-no-of-nodes.pdf',bbox_inches='tight')
+plt.savefig('flood/figs/OAA-no-of-nodes.pdf',bbox_inches='tight')
+
 
 plt.close('all')
 for setting in settings:    
+    """Draw polygons with percent nodes that can reach hospitals under 08 mins averages across 10000 scenarios"""
+    shapes,colors = zip(*[(OA_shapes[id], baseline_value) for id,baseline_value in baseline[setting].iteritems()])
+    draw_polygons(shapes,colors,'Baseline Access Score in $< {}$ mins'.format(settings[setting]))
+    plt.savefig('flood/figs/OA-baseline-access-{}.pdf'.format(setting),bbox_inches='tight')
+
     """Draw polygons with percent nodes that can reach hospitals under 08 mins averages across 10000 scenarios"""
     shapes,colors = zip(*[(OA_shapes[id], mean_value) for id,mean_value in access[setting].mean().iteritems()])
     draw_polygons(shapes,colors,'$\mu$(Access Score) in $< {}$ mins'.format(settings[setting]))
@@ -117,7 +141,7 @@ for case in range(4):
     this = inflows.loc[case]
     dist2h.loc[case].hist(bins=50,histtype='step',cumulative=True,label='Flood: Eden {:0.0f}, Petterill {:0.0f}, Caldew {:0.0f} [$\mathrm{{m^3/s}}$] '.format(this['Eden'],this['Petterill'],this['Caldew']),normed=True)
     plt.xlabel('Distance to hospital (m)',fontsize=15)
-    plt.ylabel('Proportion of nodes',fontsize=15)
+    plt.ylabel('Cumulative proportion of nodes',fontsize=15)
     plt.legend(loc='lower right',fontsize=15)
 plt.tight_layout()
 plt.savefig('flood/figs/dist2h-normal-flood.pdf',bbox_inches='tight')
@@ -143,6 +167,32 @@ ax.set_zlabel('Caldew inflow ($\mathrm{m^3/s}$)',fontsize=15)
 ax.set_xlim(*xlim),ax.set_ylim(*ylim),ax.set_zlim(*zlim)
 plt.savefig('flood/figs/ref-node-inflows-vs-dist2h+diff2h.pdf',bbox_inches='tight')
 
+"""Histogram of scores"""
+plt.close('all')
+plt.figure(figsize=(12,6))
+bins = np.linspace(0,1,21)
+for setting in settings:
+    baseline[setting].hist(bins=bins,histtype='step',normed=True,label='Baseline: $< {}$ minutes'.format(settings[setting]),cumulative=True)    
+    access[setting].mean().hist(bins=bins,histtype='step',normed=True,label='Flood: $< {}$ minutes'.format(settings[setting]),cumulative=True)
+plt.xlabel('$\mu$(Access score)',fontsize=15)
+plt.ylabel('Cumulative proportion of output areas (OA)',fontsize=15)
+plt.legend(loc='upper left')
+plt.ylim(-0.1,1.1)
+plt.xlim(-0.1,1.1)
+plt.savefig('flood/figs/OA-mean-access-score-CDF.pdf', bbox_inches='tight' )
+
+"""Histogram of standard deviation of scores"""
+plt.figure(figsize=(12,6))
+bins = np.linspace(0,0.4,21)
+for setting in settings:
+    access[setting].std().hist(bins=bins,histtype='step',normed=True,label='Flood: $< {}$ minutes'.format(settings[setting]),cumulative=True)
+plt.xlabel('$\sigma$(Access score)',fontsize=15)
+plt.ylabel('Cumulative proportion of output areas (OA)',fontsize=15)
+plt.legend(loc='upper left')
+plt.ylim(-0.1,1.1)
+plt.xlim(-0.1,0.5)
+plt.savefig('flood/figs/OA-std-access-score-CDF.pdf', bbox_inches='tight' )
+
 """AUC figures"""
 plt.ion()
 plt.close('all')
@@ -163,5 +213,9 @@ for setting in settings:
             plt.xlabel('False Alarm Rate',fontsize=15)
             plt.ylabel('Probability of Detection',fontsize=15)
     plt.tight_layout()            
-    plt.savefig('flood/figs/{}min-AUC.pdf'.format(settings[setting]),bbox='tight')
+    plt.savefig('flood/figs/{}min-AUC.pdf'.format(settings[setting]),bbox_inches='tight')
+
+"""Histogram of OA node count"""
+plt.figure();
+OA_node_count.hist(bins=50,histtype='step',cumulative=True)
 

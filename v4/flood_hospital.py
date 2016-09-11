@@ -1,5 +1,5 @@
 import sys
-sys.path.append('core')
+sys.path.append('core/')
 import db
 import os
 import csv
@@ -246,6 +246,7 @@ for k in nodes_in_bbox:
 """Now assess all the output areas"""
 ambulance_speed = 30 # km/h  to calculate ambulance time to hospital
 normal_dist2h = pandas.Series(dist_hospital)
+normal_time2h = normal_dist2h/ambulance_speed/1000*60  # in mins
 dist2h = diff2h + normal_dist2h
 time2h = dist2h/ambulance_speed/1000*60 # in mins
 
@@ -254,14 +255,15 @@ time2h = dist2h/ambulance_speed/1000*60 # in mins
 
 settings = {'08min':8,'30min':30}
 access = {} # 1 means OA has 100% access. # 0 = OA has 0% access
-
+baseline = {} # where there is no flood
 for setting,threshold in settings.iteritems():
     access[setting] = pandas.DataFrame()
+    baseline[setting] = pandas.Series()
     for id,nodes in OA_nodes.iteritems():
-        this = time2h[nodes]
-        access[setting][id] = (this < threshold).sum(axis=1)/float(len(nodes))
-
-        access[setting].to_csv('flood/access_{}.csv'.format(setting))
+        baseline[setting].loc[id] = (normal_time2h.loc[nodes] < threshold).sum()/float(len(nodes))        
+        access[setting][id] = (time2h[nodes] < threshold).sum(axis=1)/float(len(nodes))
+    baseline[setting].to_csv('flood/baseline_{}.csv'.format(setting))
+    access[setting].to_csv('flood/access_{}.csv'.format(setting))
 
 """ Write min and max of diff and dist to file"""
 stats = pandas.DataFrame()
@@ -324,8 +326,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 
 classifiers = {
-    'LinearRegression':linear_model.LinearRegression(),
     'DecisionTree':tree.DecisionTreeClassifier(),
+    'LinearRegression':linear_model.LinearRegression(),
     'GaussianNB':GaussianNB(),
     'KNeighbors':KNeighborsClassifier(3),
     'RandomForest': RandomForestClassifier(),
@@ -343,7 +345,7 @@ th = {}
 # if access < 0.95 criteria, less than 95% of nodes have access - need to flag a warning if this is the case or lower
 criterias = np.linspace(0.75,0.95,3)
 
-results = pandas.DataFrame(columns = ['setting','criteria','classifier','AUC','RSS'])
+results = pandas.DataFrame(columns = ['setting','criteria','classifier','AUC','SEE'])
 row = 0
 
 for criteria in criterias: # check if access < criteria
@@ -374,8 +376,36 @@ for criteria in criterias: # check if access < criteria
             fpr[row], tpr[row], th[row] = metrics.roc_curve(actual, prob)
 
             valid = ~np.isnan(prob)
-            RSS = sum((prob[valid]-actual[valid])**2)
+            SEE = np.sqrt(sum((prob[valid]-actual[valid])**2)/sum(valid))
             AUC = metrics.auc(fpr[row],tpr[row])
 
-            results.loc[row] = [settings[setting],criteria,clf_name,AUC,RSS]
+            results.loc[row] = [settings[setting],criteria,clf_name,AUC,SEE]
             row +=1
+
+"""Save results to tex"""
+results.sort_values(by=['setting','criteria']).set_index(['setting','criteria','classifier']).unstack('criteria').round(3).to_latex('flood/results.tex')
+
+"""Summary of reference node"""
+ref_node = 1
+t1=dist2h[ref_node].dropna().describe()
+t2=diff2h[ref_node].dropna().describe()
+t3=diff2h[ref_node].loc[diff2h[ref_node]>0].dropna().describe()
+summary_ref_node=pandas.DataFrame({'dist2h':t1,'diff2h':t2,'diff2h > 0':t3},columns=['dist2h','diff2h','diff2h > 0']).round().applymap(int)
+"""Summary of all nodes"""
+t4=dist2h.mean().dropna().describe()
+t5=diff2h.mean().dropna().describe()
+t6=diff2h[diff2h>0].mean().dropna().describe()
+summary_all=pandas.DataFrame({'dist2h_all':t4,'diff2h_all':t5,'diff2h_all > 0':t6},columns=['dist2h_all','diff2h_all','diff2h_all > 0']).round().applymap(int)
+
+"""Summary of node count"""
+OA_node_count = pandas.Series({i:len(nodes) for i,nodes in OA_nodes.iteritems()})
+OA_node_count.describe()
+
+"""Baseline Flooded scenario description"""
+description = {}
+for setting in settings:
+    description[(setting,'baseline')] = baseline[setting].describe()
+    description[(setting,'mu')] = access[setting].mean().describe()
+    description[(setting,'sigma')] = access[setting].std().describe()
+description = pandas.DataFrame(description).T
+description.round(3).to_latex('flood/OA_mean.tex')
