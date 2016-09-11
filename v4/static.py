@@ -40,7 +40,7 @@ a_poly = {}
 b = {}
 for place in places:
 	# Load poopulation
-	p[place] = db.Population(place,pop_table='pop_gpwv4_2015')
+	p[place] = db.Population(place,table='pop_gpwv4_2015')
 	# Load boundary
 	b[place] = db.Boundary(place).shape
 
