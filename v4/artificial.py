@@ -1,14 +1,16 @@
 """
     In order to interface with the minions, make sure you run the following on a separate screen:
 
-        $ ipcluster start
+    From massevac/v4 folder:
+
+        $ ipcluster start 
 """
 %pylab
 
 import ipyparallel as ipp
 c = ipp.Client()
 
-# Syncronise modules with the minions
+# Synchronise modules with the minions
 with c[:].sync_imports():
     from core import abm,db
     import networkx
@@ -34,7 +36,7 @@ def artificial(param):
     abm.settings[scenario] = this
 
     # Loadup a new instance of the simulation
-    sim=abm.Sim('artificial',None,fresh=True,fresh_db=True,speedup=speedup,save_route=False)
+    sim=abm.sim('artificial',None,fresh=True,fresh_db=True,speedup=speedup,save_route=False)
     G=sim.h.G
 
     # 
@@ -213,9 +215,9 @@ if False:
     plt.axis('equal')
     # Update interval error histogram
     plt.subplot(122)
-    plt.hist(dx1,label='$(T_{1t} - T_{10t})/T_f$',bins=50,histtype='step',color='g')
-    plt.hist(dx2,label='$(T_{1t} - T_{100t})/T_f$',bins=40,histtype='step',color='b')
-    plt.xlabel('$(T_{1t} - T_{?t})/T_f$',fontsize=15)
+    plt.hist(dx1,label='$t=10$',bins=50,histtype='step',color='g')
+    plt.hist(dx2,label='$t=100$',bins=40,histtype='step',color='b')
+    plt.xlabel('$(T_{t=1} - T_{t=?})/T_f$',fontsize=15)
     plt.ylabel('Number of scenarios',fontsize=15)
     plt.ylim([0,250])
     plt.legend()
@@ -223,19 +225,21 @@ if False:
 
 # -------------------------------
 # r**2 value for number of agents
-x1 = df.query('t==1 and a==1')['r']  
-x2 = df.query('t==1 and a==10')['r']
-y = df.query('t==1 and a==100')['r']
+x1 = df.query('a==1')['r']  
+x2 = df.query('a==10')['r']
+y = df.query('a==100')['r']
 
 import scipy.stats as ss
 lr1 = ss.linregress(x1,y)
 print(lr1)
-# LinregressResult(slope=1.2929538335591408, intercept=-0.80225250144621718, rvalue=0.98241228775648703, pvalue=9.3206295810829002e-53, stderr=0.029372565333049674)
-# r**2 = 0.9651339031349346
+print('r^2',lr1.rvalue**2)
+# LinregressResult(slope=1.2970808181064561, intercept=-0.82238422711797377, rvalue=0.98256024115081109, pvalue=2.4651849970181862e-158, stderr=0.016779707939937601)
+# ('r^2', 0.96542462749034008)
 lr2 = ss.linregress(x2,y)
 print(lr2)
-# LinregressResult(slope=0.99999921817815518, intercept=-0.011392803035930932, rvalue=0.99999830952664392, pvalue=3.1201057345593029e-193, stderr=0.00021977098465217275)
-# r**2 = 0.9999966190561456
+print('r^2',lr2.rvalue**2)
+# LinregressResult(slope=1.0001744034322964, intercept=-0.0061508245950632201, rvalue=0.99999629843451909, pvalue=0.0, stderr=0.00018602776610642541)
+# ('r^2', 0.99999259688273978)
 # So n==10 > n==1
 # Hence, use 10 people rather than 1
 # Good fit but n==1 not making much contribution given by the fact that c_{1} = -0.0025373
@@ -246,8 +250,8 @@ dx2 = y.values-x2.values
 if False:
     plt.figure(figsize=(12,5))
     plt.subplot(121)
-    plt.scatter(x1,y+10,label='$x = T_{1a}/T_f$, $y = T_{100a}/T_f + y_{offset}$',c='r',s=5,linewidths=0)
-    plt.scatter(x2,y,label='$x = T_{10a}/T_f$, $y = T_{100a}/T_f$',c='g',s=5,linewidths=0)
+    plt.scatter(x1,y+10,c='r',marker='x',label='$x = T_{a=1}/T_f$, $y = T_{a=100}/T_f + y_{offset}$')
+    plt.scatter(x2,y,c='g',marker='x',label='$x = T_{a=10}/T_f$, $y = T_{a=100}/T_f$')
     plt.legend(loc='upper left')
     plt.xlabel('$x$',fontsize=15)
     plt.ylabel('$y$',fontsize=15)
@@ -256,16 +260,16 @@ if False:
     plt.axis('equal')
     # Update interval error histogram
     plt.subplot(122)
-    plt.hist(dx1,label='$(T_{100a} - T_{1a})/T_f$',bins=150,histtype='step',color='r')
-    plt.hist(dx2,label='$(T_{100a} - T_{10a})/T_f$',bins=1,histtype='step',color='g')
-    plt.xlabel('$(T_{100a} - T_{?t})/T_f$',fontsize=15)
+    plt.hist(dx1,label='$a=1$',bins=150,histtype='step',color='r')
+    plt.hist(dx2,label='$a=10$',bins=1,histtype='step',color='g')
+    plt.xlabel('$(T_{a=100} - T_{a=?})/T_f$',fontsize=15)
     plt.ylabel('Number of scenarios',fontsize=15)
     plt.legend()
     plt.savefig('artificial/number-of-agents-error.pdf',bbox_inches='tight')
 
 # -------------------------------
 # r**2 value for number of agents
-minidf = df.query('t==1 and a==100').copy()
+minidf = df.copy()
 
 Nedges=[]
 for b,l in minidf[['b','l']].values:
@@ -290,13 +294,14 @@ max_idx = rsq.index(max_rsq)
 # Optimal value of m
 e_opt = exp_e[max_idx]
 print(e_opt,max_rsq)
-# (1.075075075075075, 0.99493883072121214)
+# (0.97297297297297292, 0.97119451559587955)
 
 # Optimal e
 if False:
     plt.figure()    
-    plt.plot(exp_e,rsq)
-    plt.scatter(e_opt,max_rsq,label='$e_{opt} = %0.3f$'%m_opt,c='r',zorder=10)
+    plt.plot(exp_e,rsq,label='$r^2 = f(e)$')
+    plt.axvline(e_opt,c='r',linestyle=':',label='$e_{{opt}} = {:0.3f}$'.format(e_opt))
+    plt.axhline(max_rsq,c='g',linestyle='-.',label='$\mathrm{{max}}(r^2) = {:0.3f}$'.format(max_rsq))
     plt.xlabel('Exponent $e$',fontsize=15)
     plt.ylabel('Pearson $r^2$',fontsize=15)
     plt.xlim([0,3])
@@ -304,16 +309,18 @@ if False:
     plt.legend(scatterpoints=1)
     plt.savefig('artificial/exponent-e-vs-r^2.pdf',bbox_inches='tight')
 
-    minidf['i^eopt*Nedges']=minidf['i']**e_opt*minidf['Nedges']
-    x = minidf['i^eopt*Nedges']
-    y = minidf['r']
+minidf['i^eopt*Nedges']=minidf['i']**e_opt*minidf['Nedges']
+x = minidf['i^eopt*Nedges']
+y = minidf['r']
 
 pf = np.polyfit(x,y,1)
-# array([ 2.38247238,  0.30895032])
+print('linear coefficients',pf)
+# ('linear coefficients', array([ 1.65443188,  0.33411184]))
 
-# Where do the two lines intersect
+# Where do the two lines intersect along x axis??
 x_intersect = (1-pf[1])/pf[0]
-# 0.29005569672782699
+print('x_intersect',x_intersect)
+# ('x_intersect', 0.40248750287507234)
 
 xf = np.logspace(np.log10(x.min()), np.log10(x.max()),100)
 yf = np.polyval(pf,xf)
@@ -329,33 +336,32 @@ clim = [_initial_occupancy[0],_initial_occupancy[-1]]
 if False:
     plt.figure(figsize=(12,6))
     ax=plt.subplot(121)
-    sc = plt.scatter(x=x,y=y,c=minidf['i'],cmap='Greys_r',clim=clim,norm=norm,label=None)
-    plt.plot(xf,yf+1-min(yf),label='$T/T_f = m i^{e_{opt}} N_{edges} + c$')
-    plt.plot(xf,np.ones(shape(xf)),label='$T/T_f = 1$')
+    sc = plt.scatter(x=x,y=y,marker='x',c=minidf['i'],cmap='Greys',clim=clim,norm=norm,label=None)
+    plt.plot(xf,yf,label='$T/T_f = m i^{e_{opt}} N_{edges} + c$')
+    plt.plot(xf,np.ones(xf.shape),label='$T/T_f = 1$')
     plt.legend(loc='upper left')
     plt.xlabel('$i^{e_{opt}} N_{edges}$',fontsize=15)
     plt.ylabel('$T/T_f$',fontsize=15)
     # Draw the figure
     # i^m*b^l vs T/Tf
     ax = plt.subplot(122)
-    sc = plt.scatter(x=x,y=y,c=minidf['i'],cmap='Greys_r',clim=clim,norm=norm,label=None)
+    sc = plt.scatter(x=x,y=y,marker='x',c=minidf['i'],cmap='Greys',clim=clim,norm=norm,label=None)
     plt.xscale('log')
     plt.yscale('log')
-    plt.plot(xf,yf+1-min(yf),label='$T/T_f = m i^{e_{opt}} N_{edges} + c$')
-    plt.plot(xf,np.ones(shape(xf)),label='$T/T_f = 1$')
+    plt.plot(xf,yf,label='$T/T_f = m i^{e_{opt}} N_{edges} + c$')
+    plt.plot(xf,np.ones(xf.shape),label='$T/T_f = 1$')
     plt.legend(loc='upper left')
     plt.xlabel('$i^{e_{opt}} N_{edges}$',fontsize=15)
     plt.ylabel('$T/T_f$',fontsize=15)
     cb = plt.colorbar(sc,ax=plt.gcf().axes,shrink=0.5,ticks=_initial_occupancy, format='$%.2f$',orientation='horizontal')
     cb.set_label(label='Initial occupancy rate $i$',fontsize=15)
-    plt.savefig('artificial/i^eopt*Nedges-vs-T-Tf+1-log-log.pdf',bbox_inches='tight')
+    plt.savefig('artificial/i^eopt*Nedges-vs-T-Tf-log-log.pdf',bbox_inches='tight')
 
 # ------------- PART 2 -------------------
 
 # _levels,_branches,_initial_occupancy,_n_per_edge,_speedup,_scenarios
 params2 = list(itertools.product([6],[3],_initial_occupancy,[10],[10],_k_vmin,_k_lim))
 print 'PART 2',len(params2), 'scenarios'
-
 
 x_offset = 0.2
 y_offset = 0.2
@@ -413,8 +419,6 @@ for velocity in [True,False]:
     else:
         plt.savefig('artificial/fd-flow.pdf',bbox_inches='tight')
 
-
-
 # Process the results
 if False:
     r = lbview.map(job,params2)
@@ -439,6 +443,8 @@ if True:
 
     for normed in [True,False]:
         fig = plt.figure(figsize=(10,10))
+        fig.set_tight_layout(True)
+
         for sp,i in enumerate(_initial_occupancy):
             ax = plt.subplot(221+sp,projection='3d')
 
@@ -478,21 +484,14 @@ if True:
             else:
                 ax.set_zlabel('$T/T_f}$', fontsize=15)
 
-            ax.xaxis._axinfo['label']['space_factor'] = 2.5
-            ax.yaxis._axinfo['label']['space_factor'] = 2.5
-            ax.zaxis._axinfo['label']['space_factor'] = 2.5
+            ax.xaxis._axinfo['label']['space_factor'] = 2
+            ax.yaxis._axinfo['label']['space_factor'] = 2
+            ax.zaxis._axinfo['label']['space_factor'] = 2
 
             plt.title('$i = {}$'.format(i))
-
-        plt.tight_layout()
 
         if normed:
             fname = 'artificial/surface-normed.pdf'.format(i)
         else:
             fname = 'artificial/surface.pdf'.format(i)
         plt.savefig(fname,bbox_inches='tight',pad_inches=0.2)
-
-
-# Regress i against each other
-if True:
-
