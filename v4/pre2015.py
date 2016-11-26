@@ -15,6 +15,11 @@ scenario_name = {'k5-idp':'Inverse distance','k5':'Nearest'}
 
 sim = 'bristol25'
 
+# ---------------------------------------------------------
+# First, produce the fundamental diagram
+
+fd = abm.FundamentalDiagram(speedup=1,k_lim=7,k_vmin=5.0)
+fd.figure(metrics=True)
 
 # ---------------------------------------------------------
 # Pretty label

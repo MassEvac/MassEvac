@@ -70,8 +70,8 @@ class FundamentalDiagram:
         # Precompute results - 14x faster to use dict
         self.precomputation()
         # Labels for the figures
-        self.ticksize = 25
-        self.fontsize = 40
+        self.ticksize = 20
+        self.fontsize = 25
         self.densityLabel = '$k \ \mathrm{[ped/m^2]}$'
         self.velocityLabel = '$v \ \mathrm{[m/s]}$'
         self.flowLabel = '$Q \ \mathrm{[ped/(ms)]}$'
@@ -107,14 +107,15 @@ class FundamentalDiagram:
             v = self.v_ff*(1.0-np.exp(-1.913*(1.0/k-1.0/5.4)))
         return v * self.speedup
     
-    def figure(self):
-        x_offset = 0.2
-        y_offset = 0.2
+    def figure(self,metrics=True):
+        x_offset = 0.6
+        y_offset = 0.6
         k = self.k
         v = [v/self.speedup for v in self.v]
         q = [q/self.speedup for q in self.q]
-        fig, (ax1,ax2) = plt.subplots(2, sharex=False, figsize=(10,10),dpi=100)        
-        ax1.plot(k,v,'r-',linewidth=4,label='$v_{max} = %0.2f \ \mathrm{[m/s]}$'%max(v))
+        fig, (ax1,ax2) = plt.subplots(2, sharex=False, figsize=(12,12),dpi=100)
+        fig.set_tight_layout(True)
+        ax1.plot(k,v,'r-',linewidth=4,label='$v=f(k)$')
         ax1.set_xlim(0,self.k_max+x_offset)
         ax1.set_ylabel(self.velocityLabel,fontsize=self.fontsize)
         ax1.set_ylim(0,self.v_ff+y_offset)
@@ -123,7 +124,7 @@ class FundamentalDiagram:
         ax1.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
         #ax.legend(loc=2,fontsize=self.fontsize)
-        ax2.plot(k,q,'g--',linewidth=4,label='$Q_{max} = %0.2f \ \mathrm{[ped/(ms)]}$'%max(q))
+        ax2.plot(k,q,'g--',linewidth=4,label='$Q = k.v(k)$')
         ax2.set_xlim(0,self.k_max+x_offset)
         ax2.set_xlabel(self.densityLabel,fontsize=self.fontsize)
         ax2.set_ylabel(self.flowLabel,fontsize=self.fontsize)
@@ -132,20 +133,22 @@ class FundamentalDiagram:
         ax2.yaxis.set_major_locator(LinearLocator(4))
         ax2.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))        
 
-        # ax1.axvline(self.k_opt,linestyle='-.',linewidth=2,label='$\mathrm{{k_{opt} = %0.2f} \ [ped/m^2]}$'%self.k_opt)
-        # ax2.axvline(self.k_opt,linestyle='-.',linewidth=2)        
+        ax1.axhline(max(v),c='r',linestyle=':',linewidth=2,label='$v_{max} = %0.2f \ \mathrm{[m/s]}$'%max(v))
+        ax2.axhline(max(q),c='g',linestyle=':',linewidth=2,label='$Q_{max} = %0.2f \ \mathrm{[ped/(ms)]}$'%max(q))
+        for ax in [ax1,ax2]:
+            ax.axvline(self.k_opt,c='b',linestyle='-.',linewidth=2,label='$\mathrm{{k_{opt} = %0.2f} \ [ped/m^2]}$'%self.k_opt)
 
-        ax1.axvline(self.k_vmin,c='y',linestyle='-.',linewidth=3,label='$k_{v,min} = %0.2f \ \mathrm{[ped/m^2]}$'%self.k_vmin)
-        ax2.axvline(self.k_vmin,c='y',linestyle='-.',linewidth=3)
-
-        ax1.axvline(self.k_lim,c='b',linestyle=':',linewidth=3,label='$k_{lim} = %0.2f \ \mathrm{[ped/m^2]}$'%self.k_lim)        
-        ax2.axvline(self.k_lim,c='b',linestyle=':',linewidth=3)
-
-        # ax1.legend(loc=1)
-        # ax2.legend(loc=1)
-
-        plt.gcf().subplots_adjust(bottom=0.15)
-        plt.savefig('figs/fd-kvmin-{}-klim-{}.pdf'.format(self.k_vmin,self.k_lim))
+        if metrics:
+            fname = 'pre2015/fd-revision.pdf'        
+            for k_lim,c in zip([5,6,7],['y','c','m']):
+                for ax in [ax1, ax2]:
+                    ax.axvline(k_lim,c=c,linestyle='-.',linewidth=2,label='$\mathrm{{k_{lim} = %0.2f} \ [ped/m^2]}$'%k_lim)
+        else:
+            fname = 'figs/fd-simple-kvmin-{}-klim-{}.pdf'.format(self.k_vmin,self.k_lim)
+        
+        ax1.legend(loc=1,fontsize=self.ticksize)
+        ax2.legend(loc=1,fontsize=self.ticksize)            
+        fig.savefig(fname,bbox_inches='tight')
         return fig
 
 ''' Scenario Definitions
