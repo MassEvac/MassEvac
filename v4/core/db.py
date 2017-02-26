@@ -75,6 +75,7 @@ class Query:
         except Exception, e:
             print 'Oh dear! Check .dbconfig file or the query!'
             print e
+            raise Exception
     
     def query(self):
         if self.data == None:
@@ -83,18 +84,16 @@ class Query:
                 self.cur.execute(self.SQL)
             except Exception, e:
                 print e
+                raise Exception
         else:
             try:
                 print self.cur.mogrify(self.SQL,self.data)
                 self.cur.execute(self.SQL,self.data)
             except Exception, e:
                 print e
+                raise Exception
         
         self.result = self.cur.fetchall()
-        # try:
-
-        # except ProgrammingError:
-        #     pass
     
     def __len__(self):
         return len(self.result)
@@ -840,7 +839,7 @@ class Highway:
 
         plt.figure()
         plt.subplot(211)
-        nxedges = nx.draw_networkx_edges(self.G,pos=nx.get_node_attributes(self.G.node,'pos'),arrows=False,edgelist=edgelist,edge_color=edgeweight,width=1,alpha=1.0)
+        nxedges = nx.draw_networkx_edges(self.G,pos=nx.get_node_attributes(self.G,'pos'),arrows=False,edgelist=edgelist,edge_color=edgeweight,width=1,alpha=1.0)
         cb=plt.colorbar(nxedges,orientation='horizontal',shrink=0.5)
         cb.set_label('Number of people per metre road length',fontsize=15)
         plt.xlabel('Longitude',fontsize=15)
@@ -853,10 +852,6 @@ class Highway:
         plt.xlabel('Number of people per metre road length',fontsize=15)
         plt.ylabel('Number of road sections',fontsize=15)
         
-
-
-
- 
     def fig_destins(self):
         ''' Returns highway map figure with the exits nodes numbered.
         '''

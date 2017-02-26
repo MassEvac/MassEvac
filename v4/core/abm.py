@@ -138,13 +138,7 @@ class FundamentalDiagram:
         for ax in [ax1,ax2]:
             ax.axvline(self.k_opt,c='b',linestyle='-.',linewidth=2,label='$\mathrm{{k_{opt} = %0.2f} \ [ped/m^2]}$'%self.k_opt)
 
-        if metrics:
-            fname = 'pre2015/fd-revision.pdf'        
-            for k_lim,c in zip([5,6,7],['y','c','m']):
-                for ax in [ax1, ax2]:
-                    ax.axvline(k_lim,c=c,linestyle='-.',linewidth=2,label='$\mathrm{{k_{lim} = %0.2f} \ [ped/m^2]}$'%k_lim)
-        else:
-            fname = 'figs/fd-simple-kvmin-{}-klim-{}.pdf'.format(self.k_vmin,self.k_lim)
+        fname = 'figs/fd-simple-kvmin-{}-klim-{}.pdf'.format(self.k_vmin,self.k_lim)
         
         ax1.legend(loc=1,fontsize=self.ticksize)
         ax2.legend(loc=1,fontsize=self.ticksize)            
@@ -205,20 +199,20 @@ settings = {
         'k_lim':7,
         'label':'With Interaction, No Intervention',
     },
-    # 'ff-idp':{ # Density limit of 5 but free flow
-    #     'path':'invdistprob',
-    #     'df':0.0,
-    #     'k_vmin':5, # Not applicable but needs a value
-    #     'k_lim':5, # Not applicable but needs a value
-    #     'label':'Free flow',
-    # },    
-    # 'ff':{ # Density limit of 5 but free flow
-    #     'path':'nearest',
-    #     'df':0.0,
-    #     'k_vmin':5, # Not applicable but needs a value
-    #     'k_lim':5, # Not applicable but needs a value
-    #     'label':'Free flow',
-    # },    
+    'ff-idp':{ # Density limit of 5 but free flow
+        'path':'invdistprob',
+        'df':0.0,
+        'k_vmin':5, # Not applicable but needs a value
+        'k_lim':5, # Not applicable but needs a value
+        'label':'Free flow',
+    },    
+    'ff':{ # Density limit of 5 but free flow
+        'path':'nearest',
+        'df':0.0,
+        'k_vmin':5, # Not applicable but needs a value
+        'k_lim':5, # Not applicable but needs a value
+        'label':'Free flow',
+    },    
 }
 
 class Places:
