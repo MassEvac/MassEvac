@@ -1,4 +1,5 @@
-# Calculates network metrics of subgraphs ready for analysis
+''' Calculates network metrics of subgraphs ready for analysis.
+'''
 
 from core import abm,db
 reload(abm)

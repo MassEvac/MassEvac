@@ -1,3 +1,7 @@
+''' This file captures the analyses that led to the PRE paper.
+    Subsequent analyses are captured in the notebook 05_topological_metrics.ipynb
+'''    
+
 from core import db,abm
 import pandas
 import shelve
@@ -631,7 +635,7 @@ ax4.set_xlim(None,2)
 ax4.axvline(1,c='r',linestyle='-.',label='$\mathrm{{T/{0}}} = 1$'.format(pl['T90f']))    
 plt.savefig('pre2015/{}-{}-all-norm-T-Q.pdf'.format(CI,scenario),bbox_inches='tight')
 
-"""FIG 7"""
+"""FIG 7A"""
 # Qc vs Qmf
 import random
 
@@ -652,7 +656,6 @@ for l in pl.keys():
         npl[l] = pl[l]
         print 'Could not normalise for',l
 
-"""FIG 7A"""
 theta = {}
 gamma = {}
 
@@ -692,7 +695,7 @@ for scenario in scenarios:
     # take the logarithm of both side gives log y = theta log x + log gamma.
     # So just fit log y against x.
 
-    Qmax = max(s.fd.q)
+    Qmax = max(fd.q)
 
     plt.figure()
     plt.scatter(x,y,color='g',label='$\mathrm{r^2 = %0.2f}$'%c)
@@ -793,6 +796,11 @@ for scenario in scenarios:
     eta[scenario] = 10**eta[scenario]
     cl[scenario] = np.corrcoef(logx,logy)[0,1]**2
 
+for scenario in scenarios:
+    print scenario, 'omega = ',omega[scenario], 'phi=', phi[scenario], 'r^2'
+for scenario in scenarios:
+    print scenario, 'zeta = ',zeta[scenario], 'eta=', eta[scenario], 'r^2', cl[scenario]
+
 plt.figure(figsize=(12,10))
 for i,scenario in enumerate(scenarios):
     plt.subplot(121+i/3)
@@ -817,12 +825,10 @@ for i,scenario in enumerate(scenarios):
     plt.legend(loc='upper left')
     plt.xlabel('$\mathrm{{{0}_{{calculated}}}}$'.format(pl[l2]),fontsize=15)
     plt.ylabel('$\mathrm{{{0}_{{simulated}}}}$'.format(pl[l2]),fontsize=15) # labels again
-plt.savefig('pre2015/T90-T90.pdf'.format(scenario),bbox_inches='tight')
+plt.savefig('pre2015/{}-T90-T90.pdf'.format(scenario),bbox_inches='tight')
 
-for scenario in scenarios:
-    print scenario, 'omega = ',omega[scenario], 'phi=', phi[scenario], 'r^2'
-for scenario in scenarios:
-    print scenario, 'zeta = ',zeta[scenario], 'eta=', eta[scenario], 'r^2', cl[scenario]
+
+"""LOAD PREPROCESSED METRICS"""
 
 # Print phi, omega, zeta, eta table
 k_lim = {k:v['k_lim'] for k,v in abm.settings.iteritems()}
@@ -839,8 +845,6 @@ dT90 = {}
 for scenario in scenarios:
     T90c[scenario] = omega[scenario]*T90f[scenario]*Qp[scenario]**phi[scenario]
     dT90[scenario] = T90[scenario] - T90c[scenario]
-
-"""FIG 9"""
 
 def load_json(metric,place,destin):
     print metric
@@ -891,226 +895,6 @@ plt.xlabel('$\delta T^{90\%}_n$',fontsize=15)
 plt.savefig('pre2015/hist-dT90-norm.pdf'.format(scenario),bbox_inches='tight')
 
 
-corrnorm = pandas.DataFrame()
-corrnorm['pearson'] = M.corr('pearson')['dTnorm'].loc[keys]
-corrnorm['spearman'] = M.corr('spearman')['dTnorm'].loc[keys]
-corrnorm.to_csv('pre2015/corr.csv')
-
-all_keys = list(corrnorm.index)
-
-keys = [   
-        'deg_cen',
-        'in_deg_cen',
-        'out_deg_cen',
-        'bet_cen',
-        'bet_cen_exit',
-        'load_cen_exit',
-        'eivec_cen_exit',
-        'close_cen_exit',
-        'sq_clust'
-        ]
-
-def components(key):
-    return [
-            'mean_{}'.format(key),
-            'mean_{}_mean_sdsp'.format(key),
-            'mean_{}_10pc_sdsp'.format(key),
-            'mean_{}_50pc_sdsp'.format(key),
-            'mean_{}_90pc_sdsp'.format(key),
-            'mean_{}_2000m'.format(key),
-            'mean_{}_1000m'.format(key),
-            'mean_{}_500m'.format(key),
-            'mean_{}_250m'.format(key),
-            'mean_{}_mean_tdsp'.format(key),
-            'mean_{}_10pc_tdsp'.format(key),
-            'mean_{}_50pc_tdsp'.format(key),
-            'mean_{}_90pc_tdsp'.format(key),
-            'mean_{}_8_tdsp'.format(key),
-            'mean_{}_4_tdsp'.format(key),
-            'mean_{}_2_tdsp'.format(key),
-            'mean_{}_1_tdsp'.format(key)
-        ]
-
-labels = [
-    'All',
-    'Mean Spatial Distance',
-    '10% Spatial Distance',
-    '50% Spatial Distance',
-    '90% Spatial Distance',
-    '2000 metres',
-    '1000 metres',
-    '500 metres',
-    '250 metres',
-    'Mean Topological Distance',
-    '10% Topological Distance',
-    '50% Topological Distance',
-    '90% Topological Distance',
-    '8 Topological Distance',
-    '4 Topological Distance',
-    '2 Topological Distance',
-    '1 Topological Distance'
-]
-
-remaining = all_keys[:]
-v = {}
-for k in keys:
-    this = components(k)
-    v[k] = corrnorm.loc[this]
-    v[k].index = labels
-    for t in this:
-        remaining.remove(t)
-
-# Eigenvector and closeness are not for exits
-tabular = pandas.concat(v).T.stack().unstack(level=0)
-
-tabular[['in_deg_cen','out_deg_cen','deg_cen']].round(3).to_latex('pre2015/deg_cen.tex')
-tabular[['bet_cen','bet_cen_exit']].round(3).to_latex('pre2015/bet_cen.tex')
-tabular[['eivec_cen_exit','close_cen_exit','sq_clust']].round(3).to_latex('pre2015/others.tex')
-
-keys_ns = [
-    '{}_mean_sdsp',
-    '{}_10pc_sdsp',
-    '{}_50pc_sdsp',
-    '{}_90pc_sdsp',
-    '{}_2000m',
-    '{}_1000m',
-    '{}_500m',
-    '{}_250m',
-    '{}_mean_tdsp',
-    '{}_10pc_tdsp',
-    '{}_50pc_tdsp',
-    '{}_90pc_tdsp',
-    '{}_8_tdsp',
-    '{}_4_tdsp',
-    '{}_2_tdsp',
-    '{}_1_tdsp',
-    '{}_0_in_deg',
-    '{}_1_in_deg',
-    '{}_2_in_deg',
-    '{}_3+_in_deg',
-    '{}_0_out_deg',
-    '{}_1_out_deg',
-    '{}_2_out_deg',
-    '{}_3+_out_deg',
-]    
-
-labels_ns = [
-    'Mean Spatial Distance',
-    '10% Spatial Distance',
-    '50% Spatial Distance',
-    '90% Spatial Distance',
-    '2000 metres',
-    '1000 metres',
-    '500 metres',
-    '250 metres',
-    'Mean Topological Distance',
-    '10% Topological Distance',
-    '50% Topological Distance',
-    '90% Topological Distance',
-    '8 Topological Distance',
-    '4 Topological Distance',
-    '2 Topological Distance',
-    '1 Topological Distance',
-    '0 In-Degree',
-    '1 In-Degree',
-    '2 In-Degree',
-    '3+ In-Degree',
-    '0 Out-Degree',
-    '1 Out-Degree',
-    '2 Out-Degree',
-    '3+ Out-Degree',
-]    
-
-ns = {}
-for key in ['frac_nodes','num_nodes']:
-    this = [k.format(key) for k in keys_ns]
-    ns[key] = corrnorm.loc[this]
-    ns[key].index = labels_ns
-    for t in this:
-        remaining.remove(t)
-
-tabular_ns = pandas.concat(ns).T.stack().unstack(level=0)
-tabular_ns.round(3).to_latex('pre2015/nodestats.tex')
-
-keys_sp = [
-    'mean_{}sp',
-    '10pc_{}sp',
-    '50pc_{}sp',
-    '90pc_{}sp',
-    'max_{}sp',
-]
-
-labels_sp = [
-    'Mean',
-    '10%',
-    '50%',
-    '90%',
-    'Maximum',
-]
-
-sp = {}
-for key in ['sd','td']:
-    this = [k.format(key) for k in keys_sp]
-    sp[key] = corrnorm.loc[this]
-    sp[key].index = labels_sp
-    for t in this:
-        remaining.remove(t)
-
-tabular_sp = pandas.concat(sp).T.stack().unstack(level=0)
-tabular_sp.round(3).to_latex('pre2015/shortestpath.tex')
-
-labels_final = [
-    'Number of Nodes',
-    'Number of Edges',
-    'Mean Edge Width',
-    'Mean Edge Length',
-    'Mean Edge Area',
-    'Total Edge Area',
-    'Total Edge Length',
-    'Mean Degree',
-    'Graph Density',
-    'Graph Transitivity',
-    'Strongly Connected Components',
-    'Mean Edge Betweenness Centrality',
-    'Mean Edge Betweenness Centrality for Exit',    
-]
-
-keys_final = [
-    u'num_nodes',
-    u'num_edges',
-    u'mean_edge_width',
-    u'mean_edge_length',
-    u'mean_edge_area',
-    u'sum_edge_area',
-    u'sum_edge_length',
-    u'mean_degree',
-    u'density',
-    u'transitivity',
-    u'num_strgconcom',
-    u'mean_edge_bet_cen',
-    u'mean_edge_bet_cen_exit',
-]
-
-tabular_final = corrnorm.loc[keys_final]
-tabular_final.index = labels_final
-tabular_final.round(3).to_latex('pre2015/remaining.tex')
-
-# 'edge_betweenness_centrality',
-# 'edge_betweenness_centrality_exit',
-
-showing = {
-    'in_degree_centrality':'In-degree centrality',
-    'out_degree_centrality':'Out-degree centrality',
-    'degree_centrality':'Degree centrality',
-    'betweenness_centrality':'Betweenness centrality',
-    'betweenness_centrality_exit':'Exit betweenness centrality',
-    'eigenvector_centrality':'Eigenvector centrality',
-    'closeness_centrality':'Closeness centrality',
-    'square_clustering':'Square clustering',
-    'spatial_distance':'Spatial distance from exit (metres)',
-    'topological_distance':'Topological distance from exit (node hops)'
-    }
-
 for show,label in showing.iteritems():
     plt.close('all')
     plt.figure(figsize=(10,2.5))
@@ -1130,6 +914,8 @@ for show,label in showing.iteritems():
     plt.suptitle(label,fontsize=15,y=0)
     plt.savefig('pre2015/metric-sample-bristol-{}.pdf'.format(show),bbox_inches='tight')
 
+
+    
 frac_p50_btc = []
 frac_p90_btc = []
 frac_mean_btc = []
