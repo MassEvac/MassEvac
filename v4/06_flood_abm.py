@@ -58,7 +58,7 @@ for u,v,d in sim.h.G.edges_iter(nodes_not_in_bbox,data=True):
     d['pop_dist'] = 0
 
 # sim.fresh=True
-sim.run_old(rerun=True)
+sim.run_by_agent(rerun=False)
 
 # Events for each agent
 E = {}
@@ -102,22 +102,24 @@ plt.xlabel('Longitude',fontsize=15)
 plt.ylabel('Latitude',fontsize=15)
 plt.savefig('flood/figs/abm-evacuation-points.pdf',bbox_inches='tight')
 
-
 """Figure of population distribution"""
 # The factor normalises population distribution inside the bounding box
 factor = np.sum([d['pop_dist'] for u,v,d in sim.h.G.edges(data=True) if d['pop_dist'] > 0])
 sim.h.fig_pop_dist(pop=sim.n/factor)
+# sim.h.fig_pop_dist(sim.h,pop=sim.n/factor)
 fig = plt.gcf()
-fig.set_size_inches(10,14,forward=True)
+fig.set_size_inches(12,14,forward=True)
 plt.subplot(211)
 for v in ec:
-    plt.scatter(*sim.h.G.node[v['nearest_node']],s=200,c=v['color'],alpha=0.5,marker='o',label=v['label'])
+    plt.scatter(*sim.h.G.node[v['nearest_node']]['pos'],s=200,c=v['color'],alpha=0.5,marker='o',label=v['label'])
 plt.axis('equal')
 plt.plot(*bbox.exterior.xy,c='g')
-this = V[(dt,scenario)]
-gca().set_xlim(this.l,this.r)
-gca().set_ylim(this.b,this.t)
+l,b,r,t = bbox.bounds
+plt.gca().set_xlim(l-0.01,r+0.01)
+plt.gca().set_ylim(b-0.01,t+0.01)
 plt.legend(scatterpoints=1)
+plt.subplot(212)
+plt.gca().set_ylim(0,6000)
 plt.savefig('flood/figs/abm-people-per-metre.pdf',bbox_inches='tight')
 
 """For the whole of carlisle"""

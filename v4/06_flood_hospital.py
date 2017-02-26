@@ -88,7 +88,7 @@ def reachable(node):
         return False
 
 # Get a list of all the nodes that intersect with the rectangle
-nodes_in_bbox = [k for k,v in normal.G.nodes(data=True) if bbox.intersects(Point(v)) and reachable(k)]
+nodes_in_bbox = [k for k,v in normal.G.nodes(data=True) if bbox.intersects(Point(v['pos'])) and reachable(k)]
 
 # Initialise node population to 0
 all_node_pop = {}
@@ -111,7 +111,7 @@ with open('flood/nodes_in_bbox.csv','w') as file:
     for k in nodes_in_bbox:
         d = dist_hospital[k] = normal.route_length[hospital][k] # in metres
         t = d/ambulance_speed/1000*60 # in mins
-        writer.writerow({'node_id':k,'longitude':normal.G.node[k][0],'latitude':normal.G.node[k][1],'dist_hospital':d,'time_hospital':t,'pop_dist':all_node_pop[k]})
+        writer.writerow({'node_id':k,'longitude':normal.G.node[k]['pos'][0],'latitude':normal.G.node[k]['pos'][1],'dist_hospital':d,'time_hospital':t,'pop_dist':all_node_pop[k]})
 
 # Meeting
 # Distance
@@ -138,8 +138,8 @@ def job(case):
         flooded = copy.deepcopy(normal)
         
         # Now remove all the flooded edges and find route to the hospital after considering flooded roads
-        flooded_roads=[(u,v) for u,v,d in flooded.G.edges_iter(data=True) if flood.isFlooded(flooded.G.node[u],flooded.G.node[v]) is True and d['osm_id'] not in override_osm_id]
-        # flooded_roads=[(u,v) for u,v,d in flooded.G.edges_iter(data=True) if flood.isFlooded(flooded.G.node[u],flooded.G.node[v]) is True]
+        flooded_roads=[(u,v) for u,v,d in flooded.G.edges_iter(data=True) if flood.isFlooded(flooded.G.node[u]['pos'],flooded.G.node[v]['pos']) is True and d['osm_id'] not in override_osm_id]
+        # flooded_roads=[(u,v) for u,v,d in flooded.G.edges_iter(data=True) if flood.isFlooded(flooded.G.node[u]['pos'],flooded.G.node[v]['pos']) is True]
         before = flooded.G.number_of_edges(),flooded.G.number_of_nodes()
         flooded.G.remove_edges_from(flooded_roads)
         after = flooded.G.number_of_edges(),flooded.G.number_of_nodes()
@@ -235,7 +235,7 @@ with fiona.open('flood/OA_unclipped.shp') as source:
 # Determine OA_id for each nodes_in_bbox
 OA_nodes = {}
 for k in nodes_in_bbox:
-    node = Point(normal.G.node[k])
+    node = Point(normal.G.node[k]['pos'])
     for id,OA_shape in enumerate(OA_shapes):
         if OA_shape.intersects(node):
             try:

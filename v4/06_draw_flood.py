@@ -17,19 +17,39 @@ import matplotlib.pyplot as plt
         # db.plt.xlabel('lon')
         # db.plt.ylabel('lat')
 
+
+"""Inflows histogram"""
+def subhist(key,color):
+    this = inflows[key]
+    bins=np.logspace(np.log10(this.min()),  np.log10(this.max()), 50)
+    plt.hist(key_inflows,bins=bins,histtype='step',color=color,label=key,normed=True,log=False)
+    plt.xscale('log')
+    plt.legend(fontsize=12)
+    plt.xlabel('$\mathrm{m^3/s}$',fontsize=15)
+    print key,this.mean(),this.std()
+plt.figure(figsize=(15,3))
+plt.subplot(131)
+subhist('Eden','r')
+plt.subplot(132)
+subhist('Caldew','g')
+plt.subplot(133)
+subhist('Petterill','b')
+plt.savefig('flood/figs/inflows-subplots.pdf', bbox_inches='tight' )
+
+
 """Original and binary flood map"""
 original = db.Flood('flood/res1_1_original.tif')
 binary = db.Flood('flood/res1_1_binary_30cm.tif')
 plt.close('all')
-plt.figure(figsize=(10,14))
+plt.figure(figsize=(10,12))
 plt.subplot(211)
-plt.imshow(original.Map*100,extent=[self.minx,self.maxx,self.miny,self.maxy],vmin=0,alpha=1.0, cmap=plt.get_cmap('Blues'))
+plt.imshow(original.Map*100,extent=[original.minx,original.maxx,original.miny,original.maxy],vmin=0,alpha=1.0, cmap=plt.get_cmap('Blues'))
 cb=plt.colorbar(ticks=[30,1000],orientation='horizontal',shrink=0.5)
 cb.set_ticklabels(['$30$ cm','$1000$ cm'])
 plt.xlabel('Longitude',fontsize=15)
 plt.ylabel('Latitude',fontsize=15)
 plt.subplot(212)
-plt.imshow(binary.Map,extent=[self.minx,self.maxx,self.miny,self.maxy],vmin=0,alpha=1.0, cmap=plt.get_cmap('Blues'))
+plt.imshow(binary.Map,extent=[binary.minx,binary.maxx,binary.miny,binary.maxy],vmin=0,alpha=1.0, cmap=plt.get_cmap('Blues'))
 cb=plt.colorbar(ticks=[0,1],orientation='horizontal',shrink=0.5)
 cb.set_ticklabels(['Not flooded','Flooded'])
 plt.xlabel('Longitude',fontsize=15)
@@ -44,25 +64,61 @@ no_access = set(nodes_in_bbox).difference(with_access)
 plt.close('all')
 normal.fig_highway()
 fig = plt.gcf()
-fig.set_size_inches(12,8,forward=True)
+fig.set_size_inches(12,14,forward=True)
 self=flood
 plt.imshow(binary.Map,extent=[self.minx,self.maxx,self.miny,self.maxy],vmin=0,alpha=1.0, cmap=plt.get_cmap('Blues'))
 cb=plt.colorbar(ticks=[0,1],orientation='horizontal',shrink=0.5)
 cb.set_ticklabels(['Not flooded','Flooded'])
 plt.plot(*bbox.boundary.xy,label='Flood map extent')
-x,y=zip(*[normal.G.node[n] for n in with_access])
-plt.scatter(x,y,c='gray',alpha=0.3,linewidth=0,label='With access')
-x,y=zip(*[normal.G.node[n] for n in no_access])
+x,y=zip(*[normal.G.node[n]['pos'] for n in with_access])
+plt.scatter(x,y,c='k',alpha=0.3,marker='+',label='With access')
+x,y=zip(*[normal.G.node[n]['pos'] for n in no_access])
 plt.scatter(x,y,c='r',alpha=0.3,marker='x',label='No access')
-plt.scatter(*normal.G.node[hospital],s=200,c='g',alpha=0.5,marker='o',label='Hospital')
-plt.scatter(*normal.G.node[ref_node],s=200,c='y',alpha=0.5,marker='v',label='Reference node')
+plt.scatter(*normal.G.node[hospital]['pos'],s=200,c='g',alpha=0.8,marker='o',label='Hospital')
+plt.scatter(*normal.G.node[ref_node]['pos'],s=200,c='y',alpha=0.8,marker='v',label='Reference node')
 plt.legend(scatterpoints=1)
 plt.xlabel('Longitude',fontsize=15)
 plt.ylabel('Latitude',fontsize=15)
 plt.axis('equal')
-plt.xlim(flood.minx-0.03, flood.maxx+0.03)
-plt.ylim(flood.miny-0.03, flood.maxy+0.03)  
+plt.xlim(flood.minx-0.01, flood.maxx+0.01)
+plt.ylim(flood.miny-0.01, flood.maxy+0.01)  
 plt.savefig('flood/figs/carlisle+floodmap+hospital+ref-node.pdf',bbox_inches='tight')
+
+
+"""Scatter inflows vs dist2h and diff2h"""
+plt.close('all')
+fig = plt.figure(figsize=(16,10))
+ax = fig.add_subplot(121, projection='3d')
+sc = ax.scatter(xs=inflows['Eden'], ys=inflows['Petterill'], zs=inflows['Caldew'], c=np.log(dist2h[ref_node]),marker='.',linewidth=0,alpha=0.6)
+cb = plt.colorbar(sc,orientation='horizontal')
+cb.set_label('Log distance to hospital during flooding (m)',fontsize=15)
+ax.set_xlabel('Eden inflow ($\mathrm{m^3/s}$)',fontsize=15)
+ax.set_ylabel('Petterill inflow ($\mathrm{m^3/s}$)',fontsize=15)
+ax.set_zlabel('Caldew inflow ($\mathrm{m^3/s}$)',fontsize=15)
+xlim,ylim,zlim=ax.get_xlim(),ax.get_ylim(),ax.get_zlim()
+ax = fig.add_subplot(122, projection='3d')
+sc = ax.scatter(xs=inflows['Eden'], ys=inflows['Petterill'], zs=inflows['Caldew'], c=np.log(diff2h[ref_node]),marker='.',linewidth=0,alpha=0.6)
+cb = plt.colorbar(sc,orientation='horizontal')
+cb.set_label('Log difference in distance to hospital (m)',fontsize=15)
+ax.set_xlabel('Eden inflow ($\mathrm{m^3/s}$)',fontsize=15)
+ax.set_ylabel('Petterill inflow ($\mathrm{m^3/s}$)',fontsize=15)
+ax.set_zlabel('Caldew inflow ($\mathrm{m^3/s}$)',fontsize=15)
+ax.set_xlim(*xlim),ax.set_ylim(*ylim),ax.set_zlim(*zlim)
+plt.savefig('flood/figs/ref-node-inflows-vs-dist2h+diff2h.pdf',bbox_inches='tight')
+
+
+"""Histogram subplots of distance to hospital in normal condition and during flood for 4 flood conditions"""
+plt.close('all')
+plt.figure(figsize=(12,10))
+normal_dist2h.hist(bins=50,histtype='step',cumulative=True,label='No flood',normed=False)
+for case in range(4):
+    this = inflows.loc[case]
+    dist2h.loc[case].hist(bins=50,histtype='step',cumulative=True,label='Flood: Eden {:0.0f}, Petterill {:0.0f}, Caldew {:0.0f} [$\mathrm{{m^3/s}}$] '.format(this['Eden'],this['Petterill'],this['Caldew']),normed=False)
+    plt.xlabel('Distance to hospital (m)',fontsize=15)
+    plt.ylabel('Number of nodes with access to hospital at the given distance',fontsize=15)
+    plt.legend(loc='upper right',fontsize=15)
+plt.ylim(0,5000)    
+plt.savefig('flood/figs/dist2h-normal-flood.pdf',bbox_inches='tight')
 
 
 """Draw polgons in general"""
@@ -87,8 +143,8 @@ def draw_polygons(shapes,colors,label,show_hospital=True):
  plt.xlim(flood.minx-0.01, flood.maxx+0.055)
  plt.ylim(flood.miny, flood.maxy+0.015)  
  if show_hospital:
-  plt.scatter(*normal.G.node[hospital],s=200,c='g',alpha=0.5,marker='o')
-  plt.scatter(*normal.G.node[hospital],s=10,c='g',alpha=1.0,marker='o')
+  plt.scatter(*normal.G.node[hospital]['pos'],s=200,c='g',alpha=0.5,marker='o')
+  plt.scatter(*normal.G.node[hospital]['pos'],s=10,c='g',alpha=1.0,marker='o')
 
 """Draw polygons with number of nodes""" 
 plt.close('all')
@@ -114,58 +170,6 @@ for setting in settings:
     shapes,colors = zip(*[(OA_shapes[id], std_value) for id,std_value in access[setting].std().iteritems()])
     draw_polygons(shapes,colors,'$\sigma$(Access Score) in $< {}$ mins'.format(settings[setting]))
     plt.savefig('flood/figs/OA-std-access-{}.pdf'.format(setting),bbox_inches='tight')
-
-"""Inflows histogram"""
-def subhist(key,color):
-    this = inflows[key]
-    bins=np.logspace(np.log10(this.min()),  np.log10(this.max()), 50)
-    plt.hist(key_inflows,bins=bins,histtype='step',color=color,label=key,normed=True,log=False)
-    plt.xscale('log')
-    plt.legend(fontsize=12)
-    plt.xlabel('$\mathrm{m^3/s}$',fontsize=15)
-    print key,this.mean(),this.std()
-plt.figure(figsize=(15,3))
-plt.subplot(131)
-subhist('Eden','r')
-plt.subplot(132)
-subhist('Caldew','g')
-plt.subplot(133)
-subhist('Petterill','b')
-plt.savefig('flood/figs/inflows-subplots.pdf', bbox_inches='tight' )
-
-"""Histogram subplots of distance to hospital in normal condition and during flood for 4 flood conditions"""
-plt.close('all')
-plt.figure(figsize=(12,8))
-normal_dist2h.hist(bins=50,histtype='step',cumulative=True,label='No flood',normed=True)
-for case in range(4):
-    this = inflows.loc[case]
-    dist2h.loc[case].hist(bins=50,histtype='step',cumulative=True,label='Flood: Eden {:0.0f}, Petterill {:0.0f}, Caldew {:0.0f} [$\mathrm{{m^3/s}}$] '.format(this['Eden'],this['Petterill'],this['Caldew']),normed=True)
-    plt.xlabel('Distance to hospital (m)',fontsize=15)
-    plt.ylabel('Cumulative proportion of nodes',fontsize=15)
-    plt.legend(loc='lower right',fontsize=15)
-plt.tight_layout()
-plt.savefig('flood/figs/dist2h-normal-flood.pdf',bbox_inches='tight')
-
-"""Scatter inflows vs dist2h and diff2h"""
-plt.close('all')
-fig = plt.figure(figsize=(16,10))
-ax = fig.add_subplot(121, projection='3d')
-sc = ax.scatter(xs=inflows['Eden'], ys=inflows['Petterill'], zs=inflows['Caldew'], c=np.log(dist2h[ref_node]),marker='.',linewidth=0,alpha=0.6)
-cb = plt.colorbar(sc,orientation='horizontal')
-cb.set_label('Log distance to hospital during flooding (m)',fontsize=15)
-ax.set_xlabel('Eden inflow ($\mathrm{m^3/s}$)',fontsize=15)
-ax.set_ylabel('Petterill inflow ($\mathrm{m^3/s}$)',fontsize=15)
-ax.set_zlabel('Caldew inflow ($\mathrm{m^3/s}$)',fontsize=15)
-xlim,ylim,zlim=ax.get_xlim(),ax.get_ylim(),ax.get_zlim()
-ax = fig.add_subplot(122, projection='3d')
-sc = ax.scatter(xs=inflows['Eden'], ys=inflows['Petterill'], zs=inflows['Caldew'], c=np.log(diff2h[ref_node]),marker='.',linewidth=0,alpha=0.6)
-cb = plt.colorbar(sc,orientation='horizontal')
-cb.set_label('Log difference in distance to hospital (m)',fontsize=15)
-ax.set_xlabel('Eden inflow ($\mathrm{m^3/s}$)',fontsize=15)
-ax.set_ylabel('Petterill inflow ($\mathrm{m^3/s}$)',fontsize=15)
-ax.set_zlabel('Caldew inflow ($\mathrm{m^3/s}$)',fontsize=15)
-ax.set_xlim(*xlim),ax.set_ylim(*ylim),ax.set_zlim(*zlim)
-plt.savefig('flood/figs/ref-node-inflows-vs-dist2h+diff2h.pdf',bbox_inches='tight')
 
 """Histogram of scores"""
 plt.close('all')
