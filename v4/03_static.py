@@ -1,3 +1,9 @@
+"""
+- 	This only works on the Macbook Pro laptop because the
+	dataset relies on tho top 50 UK cities and amenities
+	which is only available on this machine.
+-	Make sure you have PostgreSQL running	
+"""
 # Run:
 	# ipython --pylab
 # Then:
@@ -8,6 +14,10 @@ import db
 import pandas
 import abm
 import pickle
+import numpy as np
+import matplotlib.pyplot as plt
+
+critical = ['doctors','police','fire_station','hospital','emergency_phone','fuel']
 
 # -----------------------
 # -----------------------
@@ -106,7 +116,7 @@ nz_am = {}
 am_pop_grid = {}
 nz_am_pop = {}
 # Sigmas for gaussian filter
-sigmas = linspace(0,1.5,16)
+sigmas = np.linspace(0,1.5,16)
 # Resolution of GPWv4
 # Set out rules for a grid, use the population map resolution of 30 arc seconds
 res = float(1)/120
@@ -121,7 +131,7 @@ for place in places:
 	yi = lambda(lat): min(int(round((y_max-lat)/res)),y_cells-1)
 
 	# Map population to a grid cell
-	pop_grid[place]=zeros((y_cells,x_cells))
+	pop_grid[place]=np.zeros((y_cells,x_cells))
 	for lon,lat,pop in zip(p[place].lon,p[place].lat,p[place].pop):
 		pop_grid[place][yi(lat),xi(lon)] = pop
 
@@ -149,7 +159,7 @@ for place in places:
 		nz_am_pop[place][sigma] = {}		
 
 	for amenity in amenities.index:
-		raw_am_grid=zeros((y_cells,x_cells))
+		raw_am_grid=np.zeros((y_cells,x_cells))
 		for lon,lat in a[place][amenity]:
 			raw_am_grid[yi(lat),xi(lon)] += 1
 
@@ -227,42 +237,101 @@ am_pop = amenities.divide(sorted_pop)
 am_ranks_pa = pandas.DataFrame()
 am_ranks_pa['Original']=amenities.index
 am_ranks_pa = am_ranks_pa.set_index('Original')
-am_ranks_pa['Linear Order'] = ppa.stack().median(level=2).sort(inplace=False,ascending=False).index
-am_ranks_pa['rpa2'] = np.round(ppa.stack().median(level=2).sort(inplace=False,ascending=False).values,2)
-am_ranks_pa['Monotonous Order']= spa.stack().median(level=2).sort(inplace=False,ascending=False).index
-am_ranks_pa['rhopa2']= np.round(spa.stack().median(level=2).sort(inplace=False,ascending=False).values,2)
+r = ppa.stack().median(level=2).sort_values(ascending=False)
+am_ranks_pa['Linear Order'] = r.index
+am_ranks_pa['rpa2'] = np.round(r.values,3)
+r = spa.stack().median(level=2).sort_values(ascending=False)
+am_ranks_pa['Monotonous Order']= r.index
+am_ranks_pa['rhopa2']= np.round(r.values,3)
 am_ranks_pa['Rank'] = range(1,41)
 am_ranks_pa.to_latex('static/am_ranks_pa.tex')
 
 am_ranks_aa = pandas.DataFrame()
 am_ranks_aa['Original']=amenities.index
 am_ranks_aa = am_ranks_aa.set_index('Original')
-am_ranks_aa['Linear Order'] = paa.stack().median(level=2).sort(inplace=False,ascending=False).index
-am_ranks_aa['raa2'] = np.round(paa.stack().median(level=2).sort(inplace=False,ascending=False).values,2)
-am_ranks_aa['Monotonous Order'] = saa.stack().median(level=2).sort(inplace=False,ascending=False).index
-am_ranks_aa['rhoaa2'] = np.round(saa.stack().median(level=2).sort(inplace=False,ascending=False).values,2)
+r = paa.stack().median(level=2).sort_values(ascending=False)
+am_ranks_aa['Linear Order'] = r.index
+am_ranks_aa['raa2'] = np.round(r,3)
+r = saa.stack().median(level=2).sort_values(ascending=False)
+am_ranks_aa['Monotonous Order'] = r.index
+am_ranks_aa['rhoaa2'] = np.round(r,3)
 am_ranks_aa['Rank'] = range(1,41)
 am_ranks_aa.to_latex('static/am_ranks_aa.tex')
 
 pl_ranks_pa = pandas.DataFrame()
 pl_ranks_pa['Original']=sorted_places
 pl_ranks_pa = pl_ranks_pa.set_index('Original')
-pl_ranks_pa['Linear Order'] = ppa.stack().median(level=0).sort(inplace=False,ascending=False).index
-pl_ranks_pa['rpa2'] = np.round(ppa.stack().median(level=0).sort(inplace=False,ascending=False).values,2)
-pl_ranks_pa['Monotonous Order']= spa.stack().median(level=0).sort(inplace=False,ascending=False).index
-pl_ranks_pa['rhopa2']= np.round(spa.stack().median(level=0).sort(inplace=False,ascending=False).values,2)
+r = ppa.stack().median(level=0).sort_values(ascending=False)
+pl_ranks_pa['Linear Order'] = r.index
+pl_ranks_pa['rpa2'] = np.round(r.values,3)
+r = spa.stack().median(level=0).sort_values(ascending=False)
+pl_ranks_pa['Monotonous Order']= r.index
+pl_ranks_pa['rhopa2']= np.round(r.values,3)
 pl_ranks_pa['Rank'] = range(1,51)
 pl_ranks_pa.to_latex('static/pl_ranks_pa.tex')
 
 pl_ranks_aa = pandas.DataFrame()
 pl_ranks_aa['Original']=sorted_places
 pl_ranks_aa = pl_ranks_aa.set_index('Original')
-pl_ranks_aa['Linear Order'] = paa.stack().median(level=0).sort(inplace=False,ascending=False).index
-pl_ranks_aa['raa2'] = np.round(paa.stack().median(level=0).sort(inplace=False,ascending=False).values,2)
-pl_ranks_aa['Monotonous Order'] = saa.stack().median(level=0).sort(inplace=False,ascending=False).index
-pl_ranks_aa['rhoaa2'] = np.round(saa.stack().median(level=0).sort(inplace=False,ascending=False).values,2)
+r = paa.stack().median(level=0).sort_values(ascending=False)
+pl_ranks_aa['Linear Order'] = r.index
+pl_ranks_aa['raa2'] = np.round(r.values,3)
+r = saa.stack().median(level=0).sort_values(ascending=False)
+pl_ranks_aa['Monotonous Order'] = r.index
+pl_ranks_aa['rhoaa2'] = np.round(r.values,3)
 pl_ranks_aa['Rank'] = range(1,51)
 pl_ranks_aa.to_latex('static/pl_ranks_aa.tex')
+
+# Filtering critical amenities only
+critical=list(amenities.ix[critical].sum(axis=1).sort_values(ascending=False).keys())
+
+am_ranks_pa_critical = pandas.DataFrame()
+am_ranks_pa_critical['Original']=critical
+am_ranks_pa_critical = am_ranks_pa_critical.set_index('Original')
+r = ppa[critical].stack().median(level=2).sort_values(ascending=False)
+am_ranks_pa_critical['Linear Order (critical)'] = r.index
+am_ranks_pa_critical['rpa2'] = np.round(r.values,3)
+r = spa[critical].stack().median(level=2).sort_values(ascending=False)
+am_ranks_pa_critical['Monotonous Order (critical)']= r.index
+am_ranks_pa_critical['rhopa2']= np.round(r.values,3)
+am_ranks_pa_critical['Rank'] = range(1,len(critical)+1)
+am_ranks_pa_critical.to_latex('static/am_ranks_pa_critical.tex')
+
+am_ranks_aa_critical = pandas.DataFrame()
+am_ranks_aa_critical['Original']=critical
+am_ranks_aa_critical = am_ranks_aa_critical.set_index('Original')
+r = paa[critical].stack().median(level=2)[critical].sort_values(ascending=False)
+am_ranks_aa_critical['Linear Order (critical)'] = r.index
+am_ranks_aa_critical['raa2'] = np.round(r.values,3)
+r = saa[critical].stack().median(level=2)[critical].sort_values(ascending=False)
+am_ranks_aa_critical['Monotonous Order (critical)'] = r.index
+am_ranks_aa_critical['rhoaa2'] = np.round(r.values,3)
+am_ranks_aa_critical['Rank'] = range(1,len(critical)+1)
+am_ranks_aa_critical.to_latex('static/am_ranks_aa_critical.tex')
+
+pl_ranks_pa_critical = pandas.DataFrame()
+pl_ranks_pa_critical['Original']=sorted_places
+pl_ranks_pa_critical = pl_ranks_pa_critical.set_index('Original')
+r = ppa[critical].stack().median(level=0).sort_values(ascending=False)
+pl_ranks_pa_critical['Linear Order (critical)'] = r.index
+pl_ranks_pa_critical['rpa2'] = np.round(r.values,3)
+r = spa[critical].stack().median(level=0).sort_values(ascending=False)
+pl_ranks_pa_critical['Monotonous Order (critical)']= r.index
+pl_ranks_pa_critical['rhopa2']= np.round(r.values,3)
+pl_ranks_pa_critical['Rank'] = range(1,51)
+pl_ranks_pa_critical.to_latex('static/pl_ranks_pa_critical.tex')
+
+pl_ranks_aa_critical = pandas.DataFrame()
+pl_ranks_aa_critical['Original']=sorted_places
+pl_ranks_aa_critical = pl_ranks_aa_critical.set_index('Original')
+r = paa[critical].stack().median(level=0).sort_values(ascending=False)
+pl_ranks_aa_critical['Linear Order (critical)'] = r.index
+pl_ranks_aa_critical['raa2'] = np.round(r.values,3)
+r = saa[critical].stack().median(level=0).sort_values(ascending=False)
+pl_ranks_aa_critical['Monotonous Order (critical)'] = r.index
+pl_ranks_aa_critical['rhoaa2'] = np.round(r.values,3)
+pl_ranks_aa_critical['Rank'] = range(1,51)
+pl_ranks_aa_critical.to_latex('static/pl_ranks_aa_critical.tex')
 
 # Economy of scale
 offset = 10000
@@ -277,31 +346,33 @@ for amenity in amenities.index:
 	pf[amenity] = np.polyfit(v['pop'],v[amenity],1)
 	stats[amenity] = [pf[amenity][0]]+list(ss.pearsonr(v['pop'],v[amenity]))
 stats.index = ['Exponent','Pearson r','P-value']
-stats = np.round(stats.transpose(),2)
-stats.loc[stats['P-value']<0.01,'P-value']='<0.01'
-stats.loc[stats['P-value']<0.05,'P-value']='<0.05'
-# stats.to_latex('static/economy.tex')
+stats = np.round(stats.transpose(),3)
+stats.loc[stats['P-value']<0.001,'P-value']='$<0.001$'
+stats.loc[stats['P-value']<0.005,'P-value']='$<0.005$'
+stats.loc[stats['P-value']<0.01,'P-value']='$<0.01$'
+stats.loc[stats['P-value']<0.05,'P-value']='$<0.05$'
+stats.to_latex('static/economy.tex')
 # Draw
-close('all')
-show_amenities = ['parking', 'school', 'hospital', 'fire_station', 'police']
-markers = ['.','o','+','*','x']
-colours = ['y','g','r','b','m']
-alphas = [0.1,0.2,1,1,1]
+plt.close('all')
+plt.figure(figsize=(10,10))
+markers = ['.','o','+','d','x',',']
+colours = ['c','y','m','r','g','b']
+alphas = [0.4,0.4,0.4,0.4,0.4,0.4]
 upper = 0
 lower = 0
 dummy = [-100,100]
-for i,amenity in enumerate(show_amenities):
+for i,amenity in enumerate(critical):
 	v = df[['pop',amenity]].dropna()
 	upper = max(v['pop'].max(),v[amenity].max(),upper)
 	lower = min(v['pop'].min(),v[amenity].min(),lower)
-	scatter(v['pop'],v[amenity],marker=markers[i],c=colours[i],alpha=alphas[i])
-	plot(dummy,np.polyval(pf[amenity],dummy),c=colours[i],label='$\\beta={:.2f}$ ({})'.format(pf[amenity][0],amenity))
-	hold(True)
-plot(dummy,dummy,ls='--',c='.3')
-gca().set_aspect('equal', adjustable='box')
-xlim(lower-1,upper+1)
-ylim(lower-1,upper+1)
-legend(loc='lower right');
-ylabel('log($T_a$)',fontsize=15)
-xlabel('log($T_p \\times 10^{-%0.0f}$)'%np.log10(offset),fontsize=15)
-# savefig('static/economy-of-scale.pdf',bbox_inches='tight')
+	plt.scatter(v['pop'],v[amenity],marker=markers[i],c=colours[i],alpha=alphas[i],label='$\\beta={:.2f}$ ({})'.format(pf[amenity][0],amenity))
+	plt.plot(dummy,np.polyval(pf[amenity],dummy),c=colours[i])
+	plt.hold(True)
+plt.plot(dummy,dummy,ls='--',c='.3',markeredgewidth=0)
+plt.gca().set_aspect('equal', adjustable='box')
+plt.xlim(lower-0.1,upper+0.1)
+plt.ylim(lower-0.1,upper+0.1)
+plt.legend(loc='lower right');
+plt.ylabel('log($T_a$)',fontsize=15)
+plt.xlabel('log($T_p \\times 10^{-%0.0f}$)'%np.log10(offset),fontsize=15)
+plt.savefig('static/economy-of-scale.pdf',bbox_inches='tight')
