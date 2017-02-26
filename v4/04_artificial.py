@@ -1,23 +1,12 @@
 """
     In order to interface with the minions, make sure you run the following on a separate screen:
 
-    From massevac/v4 folder:
+    From MassEvac/v4 folder:
 
         $ ipcluster start 
 """
-%pylab
 
-import ipyparallel as ipp
-c = ipp.Client()
-
-# Synchronise modules with the minions
-with c[:].sync_imports():
-    from core import abm,db
-    import networkx
-    import numpy
-    from matplotlib import pyplot
-    import shapely
-    import copy
+# ------------- HELPER FUNCTIONS -------------------
 
 def artificial(param):
     levels,branches,initial_occupancy,n_per_edge,speedup,k_vmin,k_lim = param
@@ -36,7 +25,7 @@ def artificial(param):
     abm.settings[scenario] = this
 
     # Loadup a new instance of the simulation
-    sim=abm.sim('artificial',None,fresh=True,fresh_db=True,speedup=speedup,save_route=False)
+    sim=abm.Sim('artificial',None,fresh=True,fresh_db=True,speedup=speedup,save_route=False)
     G=sim.h.G
 
     # 
@@ -93,7 +82,15 @@ def artificial(param):
     networkx.set_edge_attributes(G,'assumed_width',assumed_width)
     networkx.set_edge_attributes(G,'hiclass','road')
     sim.h.boundary=shapely.geometry.MultiPoint(networkx.get_node_attributes(G,'pos').values()).envelope
-    return sim
+
+    tstep_calculated = 0
+    for l in range(levels):
+        total_row_occupancy = initial_occupancy*(branches**l)
+        tstep_calculated += speedup*max(1,total_row_occupancy)/sim.fd.velocity(k_lim*min(1,total_row_occupancy))
+    tstep_calculated *= distance
+        # print (l,tstep_calculated)
+        
+    return sim, tstep_calculated
 
 from time import sleep
 def print_progress(params,r):
@@ -108,32 +105,47 @@ def print_progress(params,r):
                 print idx,line
         sleep(no_of_cores)
 
+# The job that we want the minions to do
+def job(param):
+
+    sim, tstep_calculated = artificial(param)
+    sim.run_by_agent(rerun=False,verbose=False,log_events_percent=100,metadata=True)
+    sim.load_events()
+
+    tstep_simulated = max([e[-1][1] for e in sim.events])*sim.speedup
+
+    return tstep_simulated, tstep_calculated
+
+
+# ------------- INITIALISE -------------------
+
+%pylab
+
+import ipyparallel as ipp
+c = ipp.Client()
+
+# Synchronise modules with the minions
+with c[:].sync_imports():
+    from core import abm,db
+    import networkx
+    import numpy
+    from matplotlib import pyplot
+    import shapely
+    import copy
+
 # Synchronise this function
 c[:]['artificial'] = artificial
 # Create a pointer to the minions in load balanced view where jobs will be sent
 lbview = c.load_balanced_view()
 
-# The job that we want the minions to do
-def job(param):
+# ------------- TREES -------------------
 
-    sim = artificial(param)
-    sim.run_by_agent(rerun=False,verbose=False,log_events_percent=100,metadata=True)
-    sim.load_events()
-
-    tstep = max([e[-1][1] for e in sim.events])*sim.speedup
-    return tstep
-
-# The scope of the parameter space
-import itertools
 _levels = [1,2,3,4,5,6]
 _branches = [1,2,3]
 _initial_occupancy = [0.01,0.02,0.04,0.08]
-_n_per_edge = [1,10,100]
-_speedup = [100,10,1]
-_k_lim = [5,5.5,6,6.5,7,7.5,8,8.5,9]
-_k_vmin = [5.0,5.05,5.1,5.15,5.2,5.25,5.3,5.35]
+_k_lim = [5]
+_k_vmin = [5.0]
 
-# ------------- TREES -------------------
 
 # Draw 6*3 grid with artificial graphs
 if False:
@@ -159,7 +171,12 @@ if False:
 
 # ------------- PART 1 -------------------
 
-params = list(itertools.product(_levels,_branches,_initial_occupancy,_n_per_edge,_speedup,[5.0],[5]))
+import itertools
+
+_n_per_edge = [1,10,100]
+_speedup = [100,10,1]
+
+params = list(itertools.product(_levels,_branches,_initial_occupancy,_n_per_edge,_speedup,_k_vmin,_k_lim))
 print 'PART 1',len(params), 'scenarios'
 
 # Process the results and generate output
@@ -167,14 +184,15 @@ if False:
     r = lbview.map(job,params)
 
     while len(params) > r.progress:
-        print('Progress',r.progress,'of',len(params))
+        print('Progress',r.progress,'of',len(params),r.status[r.progress-1])
         sleep(1)
 
     import pandas
     df = pandas.DataFrame(params)
-    df['r'] = r.result()
-    df['r']/= 600
-    df.columns=['l','b','i','a','t','k_vmin','k_lim','r']    
+    r_sim, r_cal = zip(*r.result())
+    df['r_sim'] = np.array(r_sim)/600
+    df['r_cal'] = np.array(r_cal)/600
+    df.columns=['l','b','i','a','t','k_vmin','k_lim','r_sim','r_cal']    
     df.to_csv('artificial/first.csv')
 
 import pandas
@@ -182,9 +200,9 @@ df = pandas.DataFrame.from_csv('artificial/first.csv')
 
 # -------------------------------
 # r**2 value for update intervals
-y = df.query('t==1')['r']  
-x1 = df.query('t==10')['r']
-x2 = df.query('t==100')['r']
+y = df.query('t==1')['r_sim']  
+x1 = df.query('t==10')['r_sim']
+x2 = df.query('t==100')['r_sim']
 
 import scipy.stats as ss
 lr1 = ss.linregress(x1,y)
@@ -202,22 +220,22 @@ print(lr2)
 dx1 = y.values-x1.values
 dx2 = y.values-x2.values
 
-if False:
+if True:
     plt.figure(figsize=(12,5))
     plt.subplot(121)
-    plt.scatter(x1,y+10,label='$x = T_{10t}/T_f$, $y = T_{1t}/T_f + y_{offset}$',c='g',s=5,linewidths=0)
-    plt.scatter(x2,y,label='$x = T_{100t}/T_f$, $y = T_{1t}/T_f$',c='b',s=5,linewidths=0)
+    plt.scatter(x1,y,label='$\\tau=10$',facecolors='none',edgecolors='g',marker='o',s=50)
+    plt.scatter(x2,y,label='$\\tau=100$',c='b',marker='x')
     plt.legend(loc='upper left')
-    plt.xlabel('$x$',fontsize=15)
-    plt.ylabel('$y$',fontsize=15)
-    plt.xlim([-10,None])
-    plt.ylim([-10,None])
+    plt.xlabel('$T_{t=\\tau}/T_f$',fontsize=15)
+    plt.ylabel('$T_{t=1}/T_f$',fontsize=15)
+    plt.xlim([-5,None])
+    plt.ylim([-5,None])
     plt.axis('equal')
     # Update interval error histogram
     plt.subplot(122)
-    plt.hist(dx1,label='$t=10$',bins=50,histtype='step',color='g')
-    plt.hist(dx2,label='$t=100$',bins=40,histtype='step',color='b')
-    plt.xlabel('$(T_{t=1} - T_{t=?})/T_f$',fontsize=15)
+    plt.hist(dx1,label='$\\tau=10$',bins=50,histtype='step',color='g')
+    plt.hist(dx2,label='$\\tau=100$',bins=40,histtype='step',color='b')
+    plt.xlabel('$(T_{t=1} - T_{t=\\tau})/T_f$',fontsize=15)
     plt.ylabel('Number of scenarios',fontsize=15)
     plt.ylim([0,250])
     plt.legend()
@@ -225,9 +243,9 @@ if False:
 
 # -------------------------------
 # r**2 value for number of agents
-x1 = df.query('a==1')['r']  
-x2 = df.query('a==10')['r']
-y = df.query('a==100')['r']
+x1 = df.query('a==1')['r_sim']  
+x2 = df.query('a==10')['r_sim']
+y = df.query('a==100')['r_sim']
 
 import scipy.stats as ss
 lr1 = ss.linregress(x1,y)
@@ -247,22 +265,22 @@ print('r^2',lr2.rvalue**2)
 dx1 = y.values-x1.values
 dx2 = y.values-x2.values
 
-if False:
+if True:
     plt.figure(figsize=(12,5))
     plt.subplot(121)
-    plt.scatter(x1,y+10,c='r',marker='x',label='$x = T_{a=1}/T_f$, $y = T_{a=100}/T_f + y_{offset}$')
-    plt.scatter(x2,y,c='g',marker='x',label='$x = T_{a=10}/T_f$, $y = T_{a=100}/T_f$')
+    plt.scatter(x1,y,label='$\\alpha=1$',c='r',marker='x')
+    plt.scatter(x2,y,label='$\\alpha=10$',facecolors='none',edgecolors='g',marker='o',s=50)
     plt.legend(loc='upper left')
-    plt.xlabel('$x$',fontsize=15)
-    plt.ylabel('$y$',fontsize=15)
+    plt.xlabel('$T_{a=\\alpha}/T_f$',fontsize=15)
+    plt.ylabel('$T_{a=100}/T_f$',fontsize=15)
     plt.xlim([-10,None])
     plt.ylim([-10,None])
     plt.axis('equal')
     # Update interval error histogram
     plt.subplot(122)
-    plt.hist(dx1,label='$a=1$',bins=150,histtype='step',color='r')
-    plt.hist(dx2,label='$a=10$',bins=1,histtype='step',color='g')
-    plt.xlabel('$(T_{a=100} - T_{a=?})/T_f$',fontsize=15)
+    plt.hist(dx1,label='$\\alpha=1$',bins=150,histtype='step',color='r')
+    plt.hist(dx2,label='$\\alpha=10$',bins=1,histtype='step',color='g')
+    plt.xlabel('$(T_{a=100} - T_{a=\\alpha})/T_f$',fontsize=15)
     plt.ylabel('Number of scenarios',fontsize=15)
     plt.legend()
     plt.savefig('artificial/number-of-agents-error.pdf',bbox_inches='tight')
@@ -287,17 +305,17 @@ exp_e = np.linspace(0,3,1000)
 rsq = []
 for e in exp_e:
     minidf['i^e*Nedges']=minidf['i']**e*minidf['Nedges']
-    rsq.append(minidf.corr()['r']['i^e*Nedges']**2)
+    rsq.append(minidf.corr()['r_sim']['i^e*Nedges']**2)
 
 max_rsq = max(rsq)
 max_idx = rsq.index(max_rsq)
 # Optimal value of m
 e_opt = exp_e[max_idx]
-print(e_opt,max_rsq)
-# (0.97297297297297292, 0.97119451559587955)
+print('e_opt',e_opt,'max_rsq',max_rsq)
+# ('e_opt', 0.97297297297297292, 'max_rsq', 0.97119451559596126)
 
 # Optimal e
-if False:
+if True:
     plt.figure()    
     plt.plot(exp_e,rsq,label='$r^2 = f(e)$')
     plt.axvline(e_opt,c='r',linestyle=':',label='$e_{{opt}} = {:0.3f}$'.format(e_opt))
@@ -311,7 +329,8 @@ if False:
 
 minidf['i^eopt*Nedges']=minidf['i']**e_opt*minidf['Nedges']
 x = minidf['i^eopt*Nedges']
-y = minidf['r']
+y = minidf['r_sim']
+c = minidf['i']
 
 pf = np.polyfit(x,y,1)
 print('linear coefficients',pf)
@@ -333,10 +352,10 @@ from matplotlib.colors import LogNorm
 norm = LogNorm(vmin=_initial_occupancy[0], vmax=_initial_occupancy[-1])
 clim = [_initial_occupancy[0],_initial_occupancy[-1]]
 
-if False:
-    plt.figure(figsize=(12,6))
+if True:
+    plt.figure(figsize=(12,8))
     ax=plt.subplot(121)
-    sc = plt.scatter(x=x,y=y,marker='x',c=minidf['i'],cmap='Greys',clim=clim,norm=norm,label=None)
+    sc = plt.scatter(x=x,y=y,marker='x',c=c,cmap='Greys',clim=clim,norm=norm,label=None)
     plt.plot(xf,yf,label='$T/T_f = m i^{e_{opt}} N_{edges} + c$')
     plt.plot(xf,np.ones(xf.shape),label='$T/T_f = 1$')
     plt.legend(loc='upper left')
@@ -345,7 +364,7 @@ if False:
     # Draw the figure
     # i^m*b^l vs T/Tf
     ax = plt.subplot(122)
-    sc = plt.scatter(x=x,y=y,marker='x',c=minidf['i'],cmap='Greys',clim=clim,norm=norm,label=None)
+    sc = plt.scatter(x=x,y=y,marker='x',c=c,cmap='Greys',clim=clim,norm=norm,label=None)
     plt.xscale('log')
     plt.yscale('log')
     plt.plot(xf,yf,label='$T/T_f = m i^{e_{opt}} N_{edges} + c$')
@@ -357,7 +376,48 @@ if False:
     cb.set_label(label='Initial occupancy rate $i$',fontsize=15)
     plt.savefig('artificial/i^eopt*Nedges-vs-T-Tf-log-log.pdf',bbox_inches='tight')
 
+# -------------------------------
+# r**2 value for update intervals
+x = minidf['r_cal']
+y = minidf['r_sim']
+c = minidf['i']
+
+from matplotlib import cm
+from matplotlib.colors import LogNorm
+norm = LogNorm(vmin=_initial_occupancy[0], vmax=_initial_occupancy[-1])
+clim = [_initial_occupancy[0],_initial_occupancy[-1]]
+
+diag = [x.min(),x.max()]
+
+print ('r_sq',minidf.corr()['r_sim']['r_cal']**2)
+# ('r_sq', 0.97499390556708121)
+
+if True:
+    plt.figure(figsize=(12,8))
+    ax=plt.subplot(121)
+    sc = plt.scatter(x=x,y=y,marker='x',c=c,cmap='Greys',clim=clim,norm=norm,label=None)
+    plt.plot(diag,diag,label='$T/T_f = T_{calculated}/T_f$')
+    plt.legend(loc='upper left')
+    plt.xlabel('$T_{calculated}/T_f$',fontsize=15)
+    plt.ylabel('$T/T_f$',fontsize=15)
+    # Draw the figure
+    # i^m*b^l vs T/Tf
+    ax = plt.subplot(122)
+    sc = plt.scatter(x=x,y=y,marker='x',c=c,cmap='Greys',clim=clim,norm=norm,label=None)
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.plot(diag,diag,label='$T/T_f = T_{calculated}/T_f$')
+    plt.legend(loc='upper left')
+    plt.xlabel('$T_{calculated}/T_f$',fontsize=15)
+    plt.ylabel('$T/T_f$',fontsize=15)
+    cb = plt.colorbar(sc,ax=plt.gcf().axes,shrink=0.5,ticks=_initial_occupancy, format='$%.2f$',orientation='horizontal')
+    cb.set_label(label='Initial occupancy rate $i$',fontsize=15)
+    plt.savefig('artificial/calculated-vs-simulated-T-Tf.pdf',bbox_inches='tight')
+
 # ------------- PART 2 -------------------
+
+_k_lim = [5,5.5,6,6.5,7,7.5,8,8.5,9]
+_k_vmin = [5.0,5.05,5.1,5.15,5.2,5.25,5.3,5.35]
 
 # _levels,_branches,_initial_occupancy,_n_per_edge,_speedup,_scenarios
 params2 = list(itertools.product([6],[3],_initial_occupancy,[10],[10],_k_vmin,_k_lim))
@@ -427,9 +487,8 @@ if False:
 
     import pandas
     df2 = pandas.DataFrame(params2)
-    df2['r'] = r.result()
-    df2['r']/= 600
-    df2.columns=['l','b','i','a','t','k_vmin','k_lim','r']
+    df2['r_sim'] = np.array(r.result())/600
+    df2.columns=['l','b','i','a','t','k_vmin','k_lim','r_sim']
     df2.to_csv('artificial/second.csv')
 
 import pandas
@@ -451,7 +510,7 @@ if True:
             thisdf = df2.query('i=={}'.format(i))
             x = thisdf['k_lim']
             y = thisdf['k_vmin']
-            z = thisdf['r']
+            z = thisdf['r_sim']
 
             shape = (len(_k_vmin),len(_k_lim))
             X = np.reshape(x,shape)
