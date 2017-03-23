@@ -47,14 +47,14 @@ This is the output of my `ffmpeg -version` command at the time of producing thes
 >      libswresample   2.  3.100 /  2.  3.100
 >      libpostproc    54.  1.100 / 54.  1.100
 
-After all the requirements are fulfilled, test run an agent based evacuation simulation by running the following in the terminal:
+After all the dependencies are met, test run an agent based evacuation simulation by running the following in the terminal:
 
 ```bash
 cd v4/
 python 0A_abm_test.py
 ```
 
-[requirements.txt]: v4/requirements.txt
+[requirements.txt]: requirements.txt
 [GPWv4]: http://sedac.ciesin.columbia.edu/data/collection/gpw-v4
 [SetupDB.sh]: SetupDB.sh
 [v1]: v1/
