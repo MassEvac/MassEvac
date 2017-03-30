@@ -1,0 +1,17 @@
+name: massevac
+channels:
+  - menpo
+  - defaults
+dependencies:
+  - python=2.7
+  - psycopg2
+  - shapely
+  - numpy
+  - networkx
+  - matplotlib
+  - pandas
+  - gdal
+  - pil
+  - pandas
+  - scipy
+  - ipython

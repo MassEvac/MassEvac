@@ -1,7 +1,0 @@
-conda:
-psycopg2
-shapely
-numpy
-networkx
-matplotlib
-pandas
